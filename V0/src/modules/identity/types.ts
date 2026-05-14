@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export type DedupStatus = 'pending' | 'unique' | 'duplicate' | 'merged_into_unique';
 export type PostWindowBehavior = 'new_lead' | 'merge_existing';
+export type DedupeReason = 'within_window' | 'post_window_merge';
 
 export type OrgDedupRules = {
   phone_window_hours: number;
@@ -19,6 +20,8 @@ export type RawLeadRef = {
 
 export type UniqueLead = {
   id: string;
+  primary_name: string;
+  known_names: string[];
   last_seen_at: string;
   total_touches: number;
   touch_sources: TouchSource[];
@@ -59,6 +62,7 @@ export type CreateUniqueLeadInput = {
   primary_source_id: string;
   total_touches: number;
   touch_sources: TouchSource[];
+  known_names: string[];
 };
 
 export type AuditLogEntry = {

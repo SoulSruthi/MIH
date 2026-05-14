@@ -56,13 +56,25 @@ function makeDeps(overrides: Partial<DedupDeps> = {}): DedupDeps {
   };
 }
 
+function makeExistingLead(overrides: Partial<{
+  id: string; primary_name: string; known_names: string[];
+  last_seen_at: string; total_touches: number; touch_sources: never[];
+}> = {}) {
+  return {
+    id: 'ulead-existing',
+    primary_name: 'Ravi Kumar',
+    known_names: [] as string[],
+    last_seen_at: new Date('2026-01-01T10:00:00Z').toISOString(),
+    total_touches: 1,
+    touch_sources: [] as never[],
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: no dedup_rules row (uses defaults)
   mockGetOrgDedupRules.mockResolvedValue(DEFAULT_RULES);
-  // Default: phone not seen before
   mockLookupPhone.mockResolvedValue(null);
-  // Default: new cluster + lead created
   mockCreateCluster.mockResolvedValue({ clusterId: 'cluster-new' });
   mockCreateUniqueLead.mockResolvedValue({ uniqueLeadId: 'ulead-new' });
   mockUpdateClusterPrimaryLead.mockResolvedValue(undefined);
@@ -89,7 +101,7 @@ describe('new phone (first time seen)', () => {
     expect(mockCreateCluster).toHaveBeenCalledWith(STUB_SUPABASE, 'org-1', '+919876543210');
   });
 
-  it('creates unique_lead linked to the new cluster', async () => {
+  it('creates unique_lead with known_names=[] for first-seen lead', async () => {
     await resolveDedup(makeRawLead(), 'org-1', makeDeps());
     expect(mockCreateUniqueLead).toHaveBeenCalledWith(
       STUB_SUPABASE,
@@ -97,7 +109,9 @@ describe('new phone (first time seen)', () => {
         organization_id: 'org-1',
         identity_cluster_id: 'cluster-new',
         primary_phone_e164: '+919876543210',
+        primary_name: 'Ravi Kumar',
         total_touches: 1,
+        known_names: [],
       }),
     );
   });
@@ -107,9 +121,9 @@ describe('new phone (first time seen)', () => {
     expect(mockUpdateClusterPrimaryLead).toHaveBeenCalledWith(STUB_SUPABASE, 'cluster-new', 'ulead-new');
   });
 
-  it('updates raw_lead dedup_status to unique', async () => {
+  it('updates raw_lead dedup_status to unique with no dedup_reason', async () => {
     await resolveDedup(makeRawLead(), 'org-1', makeDeps());
-    expect(mockUpdateRawLeadDedup).toHaveBeenCalledWith(STUB_SUPABASE, 'raw-1', 'unique', 'ulead-new');
+    expect(mockUpdateRawLeadDedup).toHaveBeenCalledWith(STUB_SUPABASE, 'raw-1', 'unique', 'ulead-new', undefined);
   });
 
   it('writes audit_log with action dedup.unique_confirmed', async () => {
@@ -141,21 +155,12 @@ describe('new phone (first time seen)', () => {
 
 describe('same phone within dedup window → DUPLICATE', () => {
   const now = new Date('2026-01-01T12:00:00Z');
-  // last_seen_at = 2h ago, window = 24h → within window
   const lastSeenAt = new Date('2026-01-01T10:00:00Z').toISOString();
-  const existingLead = {
-    id: 'ulead-existing',
-    last_seen_at: lastSeenAt,
-    total_touches: 3,
-    touch_sources: [
-      { source_id: 'src-0', raw_lead_id: 'raw-0', seen_at: lastSeenAt },
-    ],
-  };
 
   beforeEach(() => {
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
-    mockGetUniqueLead.mockResolvedValue(existingLead);
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({ last_seen_at: lastSeenAt }));
   });
 
   it('returns outcome=duplicate pointing at existing uniqueLeadId', async () => {
@@ -177,7 +182,7 @@ describe('same phone within dedup window → DUPLICATE', () => {
       STUB_SUPABASE,
       'ulead-existing',
       expect.objectContaining({
-        total_touches: 4,
+        total_touches: 2,
         touch_sources: expect.arrayContaining([
           expect.objectContaining({ raw_lead_id: 'raw-dup', source_id: 'src-2' }),
         ]),
@@ -185,10 +190,10 @@ describe('same phone within dedup window → DUPLICATE', () => {
     );
   });
 
-  it('updates raw_lead dedup_status to duplicate', async () => {
+  it('sets dedup_reason=within_window on raw_lead', async () => {
     await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
     expect(mockUpdateRawLeadDedup).toHaveBeenCalledWith(
-      STUB_SUPABASE, 'raw-1', 'duplicate', 'ulead-existing',
+      STUB_SUPABASE, 'raw-1', 'duplicate', 'ulead-existing', 'within_window',
     );
   });
 
@@ -218,17 +223,11 @@ describe('same phone within dedup window → DUPLICATE', () => {
 describe('same phone after window, post_window_behavior=new_lead', () => {
   const now = new Date('2026-01-03T12:00:00Z');  // 50h after lastSeenAt
   const lastSeenAt = new Date('2026-01-01T10:00:00Z').toISOString();
-  const existingLead = {
-    id: 'ulead-existing',
-    last_seen_at: lastSeenAt,
-    total_touches: 1,
-    touch_sources: [],
-  };
 
   beforeEach(() => {
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
-    mockGetUniqueLead.mockResolvedValue(existingLead);
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({ last_seen_at: lastSeenAt }));
     mockGetOrgDedupRules.mockResolvedValue({ phone_window_hours: 24, post_window_behavior: 'new_lead' });
   });
 
@@ -257,6 +256,13 @@ describe('same phone after window, post_window_behavior=new_lead', () => {
     await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
     expect(mockUpdateUniqueLeadOnDuplicate).not.toHaveBeenCalled();
   });
+
+  it('sets no dedup_reason on raw_lead (unique outcome)', async () => {
+    await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
+    expect(mockUpdateRawLeadDedup).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'raw-1', 'unique', 'ulead-new', undefined,
+    );
+  });
 });
 
 // =================================================================
@@ -266,17 +272,11 @@ describe('same phone after window, post_window_behavior=new_lead', () => {
 describe('same phone after window, post_window_behavior=merge_existing', () => {
   const now = new Date('2026-01-03T12:00:00Z');
   const lastSeenAt = new Date('2026-01-01T10:00:00Z').toISOString();
-  const existingLead = {
-    id: 'ulead-existing',
-    last_seen_at: lastSeenAt,
-    total_touches: 2,
-    touch_sources: [],
-  };
 
   beforeEach(() => {
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
-    mockGetUniqueLead.mockResolvedValue(existingLead);
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({ total_touches: 2, last_seen_at: lastSeenAt }));
     mockGetOrgDedupRules.mockResolvedValue({ phone_window_hours: 24, post_window_behavior: 'merge_existing' });
   });
 
@@ -284,6 +284,13 @@ describe('same phone after window, post_window_behavior=merge_existing', () => {
     const result = await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
     expect(result.outcome).toBe('duplicate');
     expect(result.uniqueLeadId).toBe('ulead-existing');
+  });
+
+  it('sets dedup_reason=post_window_merge on raw_lead', async () => {
+    await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
+    expect(mockUpdateRawLeadDedup).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'raw-1', 'duplicate', 'ulead-existing', 'post_window_merge',
+    );
   });
 
   it('merges into existing: increments touches', async () => {
@@ -295,30 +302,118 @@ describe('same phone after window, post_window_behavior=merge_existing', () => {
 });
 
 // =================================================================
+// KNOWN NAMES merging
+// =================================================================
+
+describe('known_names — name merging across sources', () => {
+  const now = new Date('2026-01-01T12:00:00Z');
+  const lastSeenAt = new Date('2026-01-01T10:00:00Z').toISOString();
+
+  it('adds new name to known_names when duplicate has different name', async () => {
+    mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
+    mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({
+      primary_name: 'Ravi Kumar',
+      known_names: [],
+      last_seen_at: lastSeenAt,
+    }));
+
+    await resolveDedup(
+      makeRawLead({ name: 'R. Kumar' }),  // different name, same phone
+      'org-1',
+      makeDeps({ now: () => now }),
+    );
+
+    expect(mockUpdateUniqueLeadOnDuplicate).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'ulead-existing',
+      expect.objectContaining({ known_names: ['R. Kumar'] }),
+    );
+  });
+
+  it('does NOT add duplicate name if already in known_names', async () => {
+    mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
+    mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({
+      primary_name: 'Ravi Kumar',
+      known_names: ['R. Kumar'],
+      last_seen_at: lastSeenAt,
+    }));
+
+    await resolveDedup(makeRawLead({ name: 'R. Kumar' }), 'org-1', makeDeps({ now: () => now }));
+
+    expect(mockUpdateUniqueLeadOnDuplicate).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'ulead-existing',
+      expect.objectContaining({ known_names: ['R. Kumar'] }),  // unchanged
+    );
+  });
+
+  it('does NOT add name to known_names if same as primary_name', async () => {
+    mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
+    mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({
+      primary_name: 'Ravi Kumar',
+      known_names: [],
+      last_seen_at: lastSeenAt,
+    }));
+
+    await resolveDedup(makeRawLead({ name: 'Ravi Kumar' }), 'org-1', makeDeps({ now: () => now }));
+
+    expect(mockUpdateUniqueLeadOnDuplicate).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'ulead-existing',
+      expect.objectContaining({ known_names: [] }),
+    );
+  });
+
+  it('accumulates multiple unique names', async () => {
+    mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-abc' });
+    mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-existing');
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({
+      primary_name: 'Ravi Kumar',
+      known_names: ['R. Kumar', 'Ravi K'],
+      last_seen_at: lastSeenAt,
+    }));
+
+    await resolveDedup(makeRawLead({ name: 'RAVI KUMAR SINGH' }), 'org-1', makeDeps({ now: () => now }));
+
+    expect(mockUpdateUniqueLeadOnDuplicate).toHaveBeenCalledWith(
+      STUB_SUPABASE, 'ulead-existing',
+      expect.objectContaining({ known_names: ['R. Kumar', 'Ravi K', 'RAVI KUMAR SINGH'] }),
+    );
+  });
+
+  it('first-seen unique_lead always has known_names=[]', async () => {
+    await resolveDedup(makeRawLead({ name: 'Ravi Kumar' }), 'org-1', makeDeps());
+    expect(mockCreateUniqueLead).toHaveBeenCalledWith(
+      STUB_SUPABASE,
+      expect.objectContaining({ primary_name: 'Ravi Kumar', known_names: [] }),
+    );
+  });
+});
+
+// =================================================================
 // Configurable window per org
 // =================================================================
 
 describe('configurable dedup window', () => {
   it('uses org-specific phone_window_hours from dedup_rules', async () => {
-    // 48h window; last seen 30h ago → still within window → DUPLICATE
     const now = new Date('2026-01-02T16:00:00Z');
     const lastSeenAt = new Date('2026-01-01T10:00:00Z').toISOString(); // 30h ago
     mockGetOrgDedupRules.mockResolvedValue({ phone_window_hours: 48, post_window_behavior: 'new_lead' });
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-x' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-x');
-    mockGetUniqueLead.mockResolvedValue({ id: 'ulead-x', last_seen_at: lastSeenAt, total_touches: 1, touch_sources: [] });
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({ id: 'ulead-x', last_seen_at: lastSeenAt }));
 
     const result = await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
     expect(result.outcome).toBe('duplicate');
   });
 
-  it('1h window: 2h old → past window → new_lead', async () => {
+  it('1h window: 3h old → past window → new_lead', async () => {
     const now = new Date('2026-01-01T12:00:00Z');
-    const lastSeenAt = new Date('2026-01-01T09:00:00Z').toISOString(); // 3h ago
+    const lastSeenAt = new Date('2026-01-01T09:00:00Z').toISOString();
     mockGetOrgDedupRules.mockResolvedValue({ phone_window_hours: 1, post_window_behavior: 'new_lead' });
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-y' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-y');
-    mockGetUniqueLead.mockResolvedValue({ id: 'ulead-y', last_seen_at: lastSeenAt, total_touches: 1, touch_sources: [] });
+    mockGetUniqueLead.mockResolvedValue(makeExistingLead({ id: 'ulead-y', last_seen_at: lastSeenAt }));
 
     const result = await resolveDedup(makeRawLead(), 'org-1', makeDeps({ now: () => now }));
     expect(result.outcome).toBe('unique');
@@ -326,7 +421,6 @@ describe('configurable dedup window', () => {
 
   it('defaults to 24h window when no dedup_rules row exists', async () => {
     mockGetOrgDedupRules.mockResolvedValue({ phone_window_hours: 24, post_window_behavior: 'new_lead' });
-    // phone not seen before → unique
     const result = await resolveDedup(makeRawLead(), 'org-1', makeDeps());
     expect(result.outcome).toBe('unique');
     expect(mockGetOrgDedupRules).toHaveBeenCalledWith(STUB_SUPABASE, 'org-1');
@@ -334,12 +428,11 @@ describe('configurable dedup window', () => {
 });
 
 // =================================================================
-// Idempotency / Edge cases
+// Edge cases
 // =================================================================
 
 describe('edge cases', () => {
   it('does not emit if emitDedupDecided is undefined', async () => {
-    // Should not throw when emitDedupDecided is not provided
     await expect(
       resolveDedup(makeRawLead(), 'org-1', makeDeps({ emitDedupDecided: undefined })),
     ).resolves.not.toThrow();
@@ -353,10 +446,10 @@ describe('edge cases', () => {
     );
   });
 
-  it('handles orphaned cluster (primary_unique_lead_id exists but no unique_lead row) → creates fresh unique_lead', async () => {
+  it('handles orphaned cluster → creates fresh unique_lead', async () => {
     mockLookupPhone.mockResolvedValue({ clusterId: 'cluster-orphan' });
     mockGetClusterPrimaryLeadId.mockResolvedValue('ulead-gone');
-    mockGetUniqueLead.mockResolvedValue(null); // orphaned
+    mockGetUniqueLead.mockResolvedValue(null);
 
     const result = await resolveDedup(makeRawLead(), 'org-1', makeDeps());
     expect(result.outcome).toBe('unique');
@@ -390,7 +483,7 @@ describe('edge cases', () => {
 });
 
 // =================================================================
-// Acceptance: same phone × N → exactly 1 unique_lead (batch sim)
+// Acceptance: same phone × 5 → 1 unique + 4 duplicates
 // =================================================================
 
 describe('acceptance: same phone × 5 → 1 unique + 4 duplicates', () => {
@@ -399,7 +492,6 @@ describe('acceptance: same phone × 5 → 1 unique + 4 duplicates', () => {
     const now = new Date('2026-01-01T12:00:00Z');
     const seenAt = new Date('2026-01-01T11:00:00Z').toISOString();
 
-    // First call: phone not seen
     mockLookupPhone.mockResolvedValueOnce(null);
     mockCreateCluster.mockResolvedValueOnce({ clusterId: 'cluster-1' });
     mockCreateUniqueLead.mockResolvedValueOnce({ uniqueLeadId: 'ulead-1' });
@@ -410,16 +502,14 @@ describe('acceptance: same phone × 5 → 1 unique + 4 duplicates', () => {
     );
     expect(r1.outcome).toBe('unique');
 
-    // Subsequent 4 calls: phone found, within window
-    const existingLead = { id: 'ulead-1', last_seen_at: seenAt, total_touches: 1, touch_sources: [] };
     for (let i = 2; i <= 5; i++) {
       mockLookupPhone.mockResolvedValueOnce({ clusterId: 'cluster-1' });
       mockGetClusterPrimaryLeadId.mockResolvedValueOnce('ulead-1');
-      mockGetUniqueLead.mockResolvedValueOnce({
-        ...existingLead,
+      mockGetUniqueLead.mockResolvedValueOnce(makeExistingLead({
+        id: 'ulead-1',
+        last_seen_at: seenAt,
         total_touches: i - 1,
-        touch_sources: [],
-      });
+      }));
 
       const r = await resolveDedup(
         makeRawLead({ id: `raw-${i}`, phone_e164: phone, source_received_at: now.toISOString() }),
@@ -429,15 +519,13 @@ describe('acceptance: same phone × 5 → 1 unique + 4 duplicates', () => {
       expect(r.uniqueLeadId).toBe('ulead-1');
     }
 
-    // 1 unique_lead created total
     expect(mockCreateUniqueLead).toHaveBeenCalledTimes(1);
-    // 4 duplicate updates
     expect(mockUpdateUniqueLeadOnDuplicate).toHaveBeenCalledTimes(4);
   });
 });
 
 // =================================================================
-// graph.ts unit tests
+// rules module call check
 // =================================================================
 
 describe('rules module — getOrgDedupRules (via actual import)', () => {

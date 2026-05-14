@@ -1,4 +1,4 @@
-import type { DedupDeps, DedupResult, RawLeadRef, TouchSource } from './types.js';
+import type { DedupeReason, DedupDeps, DedupResult, RawLeadRef, TouchSource } from './types.js';
 import { getOrgDedupRules } from './rules.js';
 import {
   lookupPhoneIdentifier,
@@ -27,6 +27,7 @@ export async function resolveDedup(
 
   let uniqueLeadId: string;
   let outcome: 'unique' | 'duplicate';
+  let dedupReason: DedupeReason | undefined;
 
   if (identifier) {
     const primaryLeadId = await getClusterPrimaryLeadId(supabaseAdmin, identifier.clusterId);
@@ -42,15 +43,22 @@ export async function resolveDedup(
         if (withinWindow || rules.post_window_behavior === 'merge_existing') {
           outcome = 'duplicate';
           uniqueLeadId = existingLead.id;
+          dedupReason = withinWindow ? 'within_window' : 'post_window_merge';
+
           const newTouch: TouchSource = {
             source_id: rawLead.source_id,
             raw_lead_id: rawLead.id,
             seen_at: rawLead.source_received_at,
           };
+
+          // Merge new name into known_names if it differs from primary
+          const knownNames = mergeKnownName(existingLead.primary_name, existingLead.known_names, rawLead.name);
+
           await updateUniqueLeadOnDuplicate(supabaseAdmin, existingLead.id, {
             last_seen_at: rawLead.source_received_at,
             total_touches: existingLead.total_touches + 1,
             touch_sources: [...existingLead.touch_sources, newTouch],
+            known_names: knownNames,
           });
         } else {
           // Past window with new_lead behavior → fresh unique_lead under same cluster
@@ -84,7 +92,7 @@ export async function resolveDedup(
 
   const dedupStatus = outcome === 'unique' ? 'unique' : 'duplicate';
 
-  await updateRawLeadDedup(supabaseAdmin, rawLead.id, dedupStatus, uniqueLeadId);
+  await updateRawLeadDedup(supabaseAdmin, rawLead.id, dedupStatus, uniqueLeadId, dedupReason);
 
   await writeAuditLog(supabaseAdmin, {
     organization_id: organizationId,
@@ -93,7 +101,7 @@ export async function resolveDedup(
     table_name: 'raw_leads',
     record_id: rawLead.id,
     request_id: requestId,
-    after_state: { unique_lead_id: uniqueLeadId, dedup_status: dedupStatus },
+    after_state: { unique_lead_id: uniqueLeadId, dedup_status: dedupStatus, dedup_reason: dedupReason },
   });
 
   await deps.emitDedupDecided?.({
@@ -103,6 +111,13 @@ export async function resolveDedup(
   });
 
   return { outcome, uniqueLeadId };
+}
+
+function mergeKnownName(primaryName: string, existingKnownNames: string[], newName: string): string[] {
+  if (newName === primaryName || existingKnownNames.includes(newName)) {
+    return existingKnownNames;
+  }
+  return [...existingKnownNames, newName];
 }
 
 function buildUniqueLeadInput(
@@ -127,5 +142,6 @@ function buildUniqueLeadInput(
         seen_at: rawLead.source_received_at,
       },
     ],
+    known_names: [],
   };
 }

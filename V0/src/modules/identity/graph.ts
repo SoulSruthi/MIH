@@ -41,7 +41,7 @@ export async function getUniqueLead(
 ): Promise<UniqueLead | null> {
   const { data, error } = await supabaseAdmin
     .from('unique_leads')
-    .select('id, last_seen_at, total_touches, touch_sources')
+    .select('id, primary_name, known_names, last_seen_at, total_touches, touch_sources')
     .eq('organization_id', organizationId)
     .eq('id', uniqueLeadId)
     .maybeSingle();
@@ -51,6 +51,8 @@ export async function getUniqueLead(
 
   return {
     id: data.id as string,
+    primary_name: data.primary_name as string,
+    known_names: (data.known_names as string[]) ?? [],
     last_seen_at: data.last_seen_at as string,
     total_touches: data.total_touches as number,
     touch_sources: (data.touch_sources as TouchSource[]) ?? [],
@@ -99,7 +101,7 @@ export async function updateClusterPrimaryLead(
 
 export async function createUniqueLead(
   supabaseAdmin: SupabaseClient,
-  input: CreateUniqueLeadInput,
+  input: CreateUniqueLeadInput,  // known_names defaults to [] for first-seen leads
 ): Promise<{ uniqueLeadId: string }> {
   const { data, error } = await supabaseAdmin
     .from('unique_leads')
@@ -118,6 +120,7 @@ export async function updateUniqueLeadOnDuplicate(
     last_seen_at: string;
     total_touches: number;
     touch_sources: TouchSource[];
+    known_names: string[];
   },
 ): Promise<void> {
   const { error } = await supabaseAdmin
@@ -133,10 +136,11 @@ export async function updateRawLeadDedup(
   rawLeadId: string,
   dedupStatus: 'unique' | 'duplicate',
   uniqueLeadId: string,
+  dedupReason?: string,
 ): Promise<void> {
   const { error } = await supabaseAdmin
     .from('raw_leads')
-    .update({ dedup_status: dedupStatus, unique_lead_id: uniqueLeadId })
+    .update({ dedup_status: dedupStatus, unique_lead_id: uniqueLeadId, dedup_reason: dedupReason ?? null })
     .eq('id', rawLeadId);
 
   if (error) throw new Error(`raw_leads dedup update failed: ${error.message}`);
