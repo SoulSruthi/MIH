@@ -1,12 +1,12 @@
-export { provisionOrg } from './provision.js';
-export type { ProvisionOrgInput, ProvisionOrgResult } from './provision.js';
+export { provisionOrg } from './provision';
+export type { ProvisionOrgInput, ProvisionOrgResult } from './provision';
 
-export { getTenantContext, getTenantContextOrNull, runWithTenantContext } from './context.js';
-export type { TenantContext, BaseRole, MIHRole, Permission } from './context.js';
+export { getTenantContext, getTenantContextOrNull, runWithTenantContext } from './context';
+export type { TenantContext, BaseRole, MIHRole, Permission } from './context';
 
-export { encryptCredential, decryptCredential } from './crypto.js';
+export { encryptCredential, decryptCredential } from './crypto';
 
-export { APP_ORG_ID_SQL, tenantIsolationPolicySQL, RLS_EXEMPT_TABLES } from './rls.js';
+export { APP_ORG_ID_SQL, tenantIsolationPolicySQL, RLS_EXEMPT_TABLES } from './rls';
 
 /** Fetch a single org by id using the service-role client. */
 export async function getOrgById(

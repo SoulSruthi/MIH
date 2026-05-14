@@ -16,6 +16,12 @@ export type RawLeadRef = {
   name: string;
   source_id: string;
   source_received_at: string;
+  // M-007: richer touch / preference context
+  source_campaign_id?: string | null;
+  source_campaign_name?: string | null;
+  source_ad_id?: string | null;
+  source_ad_name?: string | null;
+  raw_payload?: unknown;
 };
 
 export type UniqueLead = {
@@ -30,7 +36,9 @@ export type UniqueLead = {
 export type TouchSource = {
   source_id: string;
   raw_lead_id: string;
-  seen_at: string;
+  touched_at: string;
+  source_campaign_id?: string | null;
+  source_ad_id?: string | null;
 };
 
 export type DedupOutcome = 'unique' | 'duplicate';
@@ -42,6 +50,7 @@ export type DedupResult = {
 
 export type DedupDeps = {
   supabaseAdmin: SupabaseClient;
+  orgSlug: string;
   emitDedupDecided?: (params: {
     unique_lead_id: string;
     dedup_status: DedupStatus;
@@ -63,6 +72,12 @@ export type CreateUniqueLeadInput = {
   total_touches: number;
   touch_sources: TouchSource[];
   known_names: string[];
+  // M-007 additions
+  crm_external_id: string;
+  crm_handoff_status: 'pending';
+  preference_bhk?: string | null;
+  preference_budget_band?: string | null;
+  preference_location?: string | null;
 };
 
 export type AuditLogEntry = {

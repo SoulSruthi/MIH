@@ -11,9 +11,9 @@
  * without INNGEST_EVENT_KEY being set.
  */
 
-import { getConnector } from './registry.js';
-import { isOpen, recordFailure, recordSuccess } from './circuit-breaker.js';
-import { applyHealthDelta, HEALTH_DELTA } from './health.js';
+import { getConnector } from './registry';
+import { isOpen, recordFailure, recordSuccess } from './circuit-breaker';
+import { applyHealthDelta, HEALTH_DELTA } from './health';
 
 export type PollSourceDeps = {
   /** Returns all active sources for this kind (service-role DB access). */

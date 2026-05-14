@@ -1,4 +1,4 @@
-import type { MetaLeadPayload, MetaInsightRecord } from './types.js';
+import type { MetaLeadPayload, MetaInsightRecord } from './types';
 
 const GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Verify the raw_lead exists and belongs to this org
-  const { data: rawLead, error: fetchErr } = await supabase
+  const { data: rawLeadRaw, error: fetchErr } = await supabase
     .from('raw_leads')
     .select('id, dedup_status, unique_lead_id')
     .eq('id', body.raw_lead_id)
@@ -34,12 +34,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .maybeSingle();
 
   if (fetchErr) return NextResponse.json({ error: fetchErr.message }, { status: 500 });
-  if (!rawLead) return NextResponse.json({ error: 'raw_lead not found' }, { status: 404 });
-  if (rawLead.dedup_status !== 'duplicate') {
+  if (!rawLeadRaw) return NextResponse.json({ error: 'raw_lead not found' }, { status: 404 });
+
+  const rawLead = rawLeadRaw as Record<string, unknown>;
+
+  if (rawLead['dedup_status'] !== 'duplicate') {
     return NextResponse.json({ error: 'raw_lead is not a duplicate' }, { status: 422 });
   }
 
-  const { data: auditRow, error: auditErr } = await supabase
+  const { data: auditRowRaw, error: auditErr } = await supabase
     .from('audit_log')
     .insert({
       organization_id: orgId,
@@ -50,18 +53,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       request_id: crypto.randomUUID(),
       after_state: {
         raw_lead_id: body.raw_lead_id,
-        unique_lead_id: rawLead.unique_lead_id,
+        unique_lead_id: rawLead['unique_lead_id'],
         note: 'V0 stub — manual re-processing required',
       },
-    })
+    } as never)
     .select('id')
     .single();
 
   if (auditErr) return NextResponse.json({ error: auditErr.message }, { status: 500 });
 
+  const auditRow = auditRowRaw as Record<string, unknown>;
+
   return NextResponse.json({
     ok: true,
-    audit_entry_id: auditRow.id,
+    audit_entry_id: auditRow['id'],
     message: 'Unmerge request logged. Manual re-processing required (V0 stub).',
   });
 }

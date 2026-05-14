@@ -1,6 +1,6 @@
-import { getTenantContext } from '../tenancy/context.js';
-import { resolve, ForbiddenError } from './service.js';
-import type { Permission } from './grants.js';
+import { getTenantContext } from '../tenancy/context';
+import { resolve, ForbiddenError } from './service';
+import type { Permission } from './grants';
 
 /**
  * Guard for Next.js Server Actions and Route Handlers.

@@ -1,12 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { normalizePhone, normalizeEmail, normalizeName, PhoneNormalizationError } from './normalize.js';
-import { computePayloadHash } from './hash.js';
-import { validateRawLeadInput, ValidationError } from './validate.js';
-import type { RawLeadInput } from '../connectors/_kernel/types.js';
+import { normalizePhone, normalizeEmail, normalizeName, PhoneNormalizationError } from './normalize';
+import { computePayloadHash } from './hash';
+import { validateRawLeadInput, ValidationError } from './validate';
+import type { RawLeadInput } from '../connectors/_kernel/types';
 
-export { computePayloadHash } from './hash.js';
-export { normalizePhone, normalizeEmail, normalizeName } from './normalize.js';
-export { validateRawLeadInput, ValidationError } from './validate.js';
+export { computePayloadHash } from './hash';
+export { normalizePhone, normalizeEmail, normalizeName } from './normalize';
+export { validateRawLeadInput, ValidationError } from './validate';
 
 export type IngestDeps = {
   supabaseAdmin: SupabaseClient;

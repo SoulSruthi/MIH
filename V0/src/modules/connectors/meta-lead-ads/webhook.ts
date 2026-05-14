@@ -1,5 +1,5 @@
-import { verifyHmacSignature } from '../_kernel/hmac.js';
-import type { MetaWebhookBody, MetaLeadgenNotification } from './types.js';
+import { verifyHmacSignature } from '../_kernel/hmac';
+import type { MetaWebhookBody, MetaLeadgenNotification } from './types';
 
 /**
  * Verifies the X-Hub-Signature-256 header from Meta.

@@ -1,4 +1,4 @@
-import type { BaseRole, MIHRole } from '../tenancy/context.js';
+import type { BaseRole, MIHRole } from '../tenancy/context';
 
 export type Permission = string;
 

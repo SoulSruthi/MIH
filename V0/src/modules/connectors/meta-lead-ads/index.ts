@@ -1,10 +1,11 @@
-import { registerConnector } from '../_kernel/registry.js';
-import type { SourceConnector, DecryptedCredentials, SourceConfig, RawLeadInput } from '../_kernel/types.js';
-import { fetchLead, listLeads, listForms } from './client.js';
-import { normalizeMetaLead } from './normalizer.js';
-import { getAuthorizationUrl, exchangeCode, refreshToken } from './oauth.js';
-import { pullDailySpend } from './spend.js';
-import type { MetaSourceConfig, OAuthTokenSet } from './types.js';
+import { registerConnector } from '../_kernel/registry';
+import type { SourceConnector, DecryptedCredentials, SourceConfig, RawLeadInput } from '../_kernel/types';
+import { fetchLead, listLeads, listForms } from './client';
+import { normalizeMetaLead } from './normalizer';
+import { getAuthorizationUrl, exchangeCode, refreshToken } from './oauth';
+import { pullDailySpend } from './spend';
+import type { MetaSourceConfig } from './types';
+import type { OAuthTokenSet } from '../_kernel/types';
 
 const metaLeadAdsConnector: SourceConnector = {
   kind: 'meta_lead_ads',
@@ -78,6 +79,6 @@ const metaLeadAdsConnector: SourceConnector = {
 registerConnector(metaLeadAdsConnector);
 
 export { metaLeadAdsConnector };
-export { normalizeMetaLead } from './normalizer.js';
-export { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from './webhook.js';
-export { fetchLead } from './client.js';
+export { normalizeMetaLead } from './normalizer';
+export { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from './webhook';
+export { fetchLead } from './client';

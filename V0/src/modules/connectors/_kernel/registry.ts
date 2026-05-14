@@ -1,4 +1,4 @@
-import type { SourceConnector } from './types.js';
+import type { SourceConnector } from './types';
 
 const connectors = new Map<string, SourceConnector>();
 

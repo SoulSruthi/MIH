@@ -1,5 +1,7 @@
-import type { DedupeReason, DedupDeps, DedupResult, RawLeadRef, TouchSource } from './types.js';
-import { getOrgDedupRules } from './rules.js';
+import type { DedupeReason, DedupDeps, DedupResult, RawLeadRef, TouchSource } from './types';
+import { getOrgDedupRules } from './rules';
+import { generateCrmExternalId } from '../leads/external-id';
+import { normalizePreferences } from '../leads/preference';
 import {
   lookupPhoneIdentifier,
   getClusterPrimaryLeadId,
@@ -10,14 +12,14 @@ import {
   updateUniqueLeadOnDuplicate,
   updateRawLeadDedup,
   writeAuditLog,
-} from './graph.js';
+} from './graph';
 
 export async function resolveDedup(
   rawLead: RawLeadRef,
   organizationId: string,
   deps: DedupDeps,
 ): Promise<DedupResult> {
-  const { supabaseAdmin } = deps;
+  const { supabaseAdmin, orgSlug } = deps;
   const now = deps.now?.() ?? new Date();
   const requestId = deps.requestId ?? crypto.randomUUID();
 
@@ -48,7 +50,9 @@ export async function resolveDedup(
           const newTouch: TouchSource = {
             source_id: rawLead.source_id,
             raw_lead_id: rawLead.id,
-            seen_at: rawLead.source_received_at,
+            touched_at: rawLead.source_received_at,
+            source_campaign_id: rawLead.source_campaign_id ?? null,
+            source_ad_id: rawLead.source_ad_id ?? null,
           };
 
           // Merge new name into known_names if it differs from primary
@@ -62,21 +66,21 @@ export async function resolveDedup(
           });
         } else {
           // Past window with new_lead behavior → fresh unique_lead under same cluster
-          const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId));
+          const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId, orgSlug));
           uniqueLeadId = newLead.uniqueLeadId;
           outcome = 'unique';
           await updateClusterPrimaryLead(supabaseAdmin, identifier.clusterId, uniqueLeadId);
         }
       } else {
         // Orphaned cluster reference — create fresh unique_lead
-        const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId));
+        const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId, orgSlug));
         uniqueLeadId = newLead.uniqueLeadId;
         outcome = 'unique';
         await updateClusterPrimaryLead(supabaseAdmin, identifier.clusterId, uniqueLeadId);
       }
     } else {
       // Cluster exists but has no primary lead yet — create unique_lead
-      const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId));
+      const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, identifier.clusterId, orgSlug));
       uniqueLeadId = newLead.uniqueLeadId;
       outcome = 'unique';
       await updateClusterPrimaryLead(supabaseAdmin, identifier.clusterId, uniqueLeadId);
@@ -84,7 +88,7 @@ export async function resolveDedup(
   } else {
     // Phone never seen — create cluster + identifier + unique_lead
     const { clusterId } = await createClusterWithIdentifier(supabaseAdmin, organizationId, rawLead.phone_e164);
-    const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, clusterId));
+    const newLead = await createUniqueLead(supabaseAdmin, buildUniqueLeadInput(rawLead, organizationId, clusterId, orgSlug));
     uniqueLeadId = newLead.uniqueLeadId;
     outcome = 'unique';
     await updateClusterPrimaryLead(supabaseAdmin, clusterId, uniqueLeadId);
@@ -124,7 +128,9 @@ function buildUniqueLeadInput(
   rawLead: RawLeadRef,
   organizationId: string,
   identityClusterId: string,
+  orgSlug: string,
 ) {
+  const prefs = normalizePreferences(rawLead.raw_payload ?? null);
   return {
     organization_id: organizationId,
     identity_cluster_id: identityClusterId,
@@ -139,9 +145,16 @@ function buildUniqueLeadInput(
       {
         source_id: rawLead.source_id,
         raw_lead_id: rawLead.id,
-        seen_at: rawLead.source_received_at,
+        touched_at: rawLead.source_received_at,
+        source_campaign_id: rawLead.source_campaign_id ?? null,
+        source_ad_id: rawLead.source_ad_id ?? null,
       },
     ],
     known_names: [],
+    crm_external_id: generateCrmExternalId(orgSlug, rawLead.id),
+    crm_handoff_status: 'pending' as const,
+    preference_bhk: prefs.preference_bhk,
+    preference_budget_band: prefs.preference_budget_band,
+    preference_location: prefs.preference_location,
   };
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from '../../../../modules/connectors/meta-lead-ads/webhook.js';
-import type { MetaWebhookBody } from '../../../../modules/connectors/meta-lead-ads/types.js';
+import { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from '@/modules/connectors/meta-lead-ads/webhook';
+import type { MetaWebhookBody } from '@/modules/connectors/meta-lead-ads/types';
 
 /**
  * GET /api/inbound/meta
