@@ -111,8 +111,10 @@ CREATE POLICY dedup_rules_tenant_isolation ON dedup_rules
 -- -----------------------------------------------------------------
 -- 6. Audit log (no RLS — service role only; immutable)
 -- -----------------------------------------------------------------
+-- Partitioned by created_at. Postgres requires the partition key to be part
+-- of any unique constraint, so id alone cannot be the PK — use (id, created_at).
 CREATE TABLE audit_log (
-  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                    uuid NOT NULL DEFAULT gen_random_uuid(),
   organization_id       uuid,
   actor_id              uuid,
   actor_type            text NOT NULL
@@ -125,13 +127,17 @@ CREATE TABLE audit_log (
   meta                  jsonb,
   ip_address            inet,
   request_id            text,
-  created_at            timestamptz NOT NULL DEFAULT now()
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
 CREATE INDEX audit_log_org_idx ON audit_log(organization_id, created_at DESC);
 CREATE INDEX audit_log_resource_idx ON audit_log(table_name, record_id, created_at DESC);
 
--- Immutability guard
+-- Default partition — bootstrap; nightly job creates monthly partitions
+CREATE TABLE audit_log_default PARTITION OF audit_log DEFAULT;
+
+-- Immutability guard on the default partition (triggers fire on partitions, not parent)
 CREATE OR REPLACE FUNCTION audit_log_immutability_guard()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -140,11 +146,8 @@ END;
 $$;
 
 CREATE TRIGGER audit_log_no_update
-  BEFORE UPDATE OR DELETE ON audit_log
+  BEFORE UPDATE OR DELETE ON audit_log_default
   FOR EACH ROW EXECUTE FUNCTION audit_log_immutability_guard();
-
--- Default partition for current month (bootstrap; nightly job manages future partitions)
-CREATE TABLE audit_log_default PARTITION OF audit_log DEFAULT;
 
 -- -----------------------------------------------------------------
 -- 7. provision_mih_org() RPC
