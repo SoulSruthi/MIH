@@ -6,11 +6,21 @@
     },
     "vibe-supabase": {
       "command": "node",
-      "args": ["scripts/mcp/supabase/server.mjs"]
+      "args": ["scripts/mcp/supabase/server.mjs"],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}",
+        "SUPABASE_PROJECT_REF": "poooyfyonogxupnmxdcp",
+        "SUPABASE_URL": "https://poooyfyonogxupnmxdcp.supabase.co"
+      }
     },
     "vibe-vercel": {
       "command": "node",
-      "args": ["scripts/mcp/vercel/server.mjs"]
+      "args": ["scripts/mcp/vercel/server.mjs"],
+      "env": {
+        "VERCEL_TOKEN": "${VERCEL_TOKEN}",
+        "VERCEL_PROJECT_ID": "prj_HCS4ktP9vRjgMFtOMc0LT5hgHew6",
+        "VERCEL_TEAM_ID": "team_5HYHIblpKGwxJt4i84EcJsl0"
+      }
     },
     "vibe-secret-scanner": {
       "command": "node",
