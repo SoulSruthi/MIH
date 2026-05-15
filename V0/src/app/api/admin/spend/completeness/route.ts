@@ -29,12 +29,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const supabase = getSupabaseAdmin();
 
+  type SourceRow = { id: string; name: string; source_type: string };
+
   // Fetch all enabled sources for this org
   const { data: sources, error: sourcesError } = await supabase
     .from('sources')
     .select('id, name, source_type')
     .eq('organization_id', orgId)
-    .eq('is_enabled', true);
+    .eq('is_enabled', true) as unknown as { data: SourceRow[] | null; error: { message: string } | null };
 
   if (sourcesError) return NextResponse.json({ error: sourcesError.message }, { status: 500 });
 
