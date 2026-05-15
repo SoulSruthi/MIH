@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import '@/app/globals.css';
+import { Sidebar, MobileNav } from '@/components/layout/Sidebar';
 
 export const metadata: Metadata = {
   title: 'MIH — Marketing Intelligence Hub',
@@ -10,27 +11,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50">
-        <header className="border-b border-slate-200 bg-white shadow-sm">
-          <nav className="mx-auto flex h-14 max-w-7xl items-center gap-8 px-4 sm:px-6 lg:px-8">
-            <a href="/" className="flex items-center gap-2 font-bold text-slate-900 text-lg tracking-tight">
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-white text-sm font-bold">
-                M
-              </span>
-              MIH
-            </a>
-            <div className="flex items-center gap-1">
-              <a
-                href="/leads"
-                className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-              >
-                Leads
-              </a>
-            </div>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          {children}
-        </main>
+        <div className="flex h-screen overflow-hidden">
+          {/* Sidebar — desktop */}
+          <div className="hidden lg:flex lg:flex-shrink-0">
+            <Sidebar />
+          </div>
+
+          {/* Main area */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Mobile top bar */}
+            <header className="flex h-14 items-center gap-3 border-b border-slate-200 bg-white px-4 lg:hidden">
+              <MobileNav />
+              <span className="font-bold text-slate-900">MIH</span>
+            </header>
+
+            {/* Scrollable content */}
+            <main className="flex-1 overflow-y-auto">
+              <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                {children}
+              </div>
+            </main>
+          </div>
+        </div>
       </body>
     </html>
   );
