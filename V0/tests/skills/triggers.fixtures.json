@@ -1,0 +1,17 @@
+{
+  "_comment": "Canonical prompts that should auto-invoke each V5 skill. Used for FR-2.3 trigger-accuracy review. Live measurement requires running the agent; this file pins the expectations.",
+  "cases": [
+    { "prompt": "Add a Row Level Security policy to the budgets table for owners", "expected_skill": "supabase-rls-policy" },
+    { "prompt": "Set up RLS on the invoices table — service role can write, authenticated can read", "expected_skill": "supabase-rls-policy" },
+    { "prompt": "Install the shadcn dialog component", "expected_skill": "shadcn-component-install" },
+    { "prompt": "Add the shadcn data-table to the dashboard", "expected_skill": "shadcn-component-install" },
+    { "prompt": "Write a Vitest unit test for the parseAmount function from this spec", "expected_skill": "vitest-from-spec" },
+    { "prompt": "Add a Vitest spec for the budget-calculator module", "expected_skill": "vitest-from-spec" },
+    { "prompt": "I found a hardcoded Stripe key in src/lib/payments.ts — fix it", "expected_skill": "secret-fix-and-relocate" },
+    { "prompt": "Move this OPENAI_API_KEY out of the source file into env", "expected_skill": "secret-fix-and-relocate" },
+    { "prompt": "Build feature: monthly budget tracking", "expected_skill": "directive-from-prompt" },
+    { "prompt": "Fix: invoice totals are off by one cent on the dashboard", "expected_skill": "directive-from-prompt" },
+    { "prompt": "Add a budgets table with user_id and amount columns to the database", "expected_skill": "migration-supabase-safe" },
+    { "prompt": "Create a Supabase migration to add a status column to invoices", "expected_skill": "migration-supabase-safe" }
+  ]
+}
