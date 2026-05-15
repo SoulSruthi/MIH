@@ -17,9 +17,8 @@ type CrmConfig = {
   hmac_secret?: string;
 };
 
-type UniqueLead = {
-  id: string;
-};
+type ConfigRow = { config: Record<string, unknown> | null };
+type LeadRow = { id: string };
 
 // Valid event types from migration 009
 const VALID_EVENT_TYPES = new Set([
@@ -57,7 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .select('config')
     .eq('organization_id', orgId)
     .eq('connector_id', CRM_CONNECTOR_ID)
-    .maybeSingle();
+    .maybeSingle() as unknown as { data: ConfigRow | null; error: { message: string } | null };
 
   const crmConfig = (configRow?.config ?? {}) as CrmConfig;
   const hmacSecret = crmConfig.hmac_secret;
@@ -99,13 +98,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid phone number format' }, { status: 400 });
   }
 
-  // Look up unique_leads by phone_e164 and org
+  // Look up unique_leads by primary_phone_e164 and org
   const { data: lead, error: leadError } = await supabase
     .from('unique_leads')
     .select('id')
     .eq('organization_id', orgId)
     .eq('primary_phone_e164', phoneE164)
-    .maybeSingle() as { data: UniqueLead | null; error: { message: string } | null };
+    .maybeSingle() as unknown as { data: LeadRow | null; error: { message: string } | null };
 
   if (leadError) {
     return NextResponse.json({ error: leadError.message }, { status: 500 });
@@ -119,17 +118,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Insert lifecycle event
-  const { error: insertError } = await supabase.from('crm_lifecycle_events').insert({
-    organization_id: orgId,
-    unique_lead_id: lead.id,
-    event_type: body.event_type,
-    event_at: body.event_at,
-    crm_external_id: body.actor_id ?? null,
-    raw_payload: body.metadata ?? null,
-  });
+  const { error: insertError } = await supabase
+    .from('crm_lifecycle_events')
+    .insert({
+      organization_id: orgId,
+      unique_lead_id: lead.id,
+      event_type: body.event_type,
+      event_at: body.event_at,
+      crm_external_id: body.actor_id ?? null,
+      raw_payload: body.metadata ?? null,
+    } as unknown as never);
 
   if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
+    return NextResponse.json({ error: (insertError as { message: string }).message }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

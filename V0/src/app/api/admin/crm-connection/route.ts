@@ -14,6 +14,8 @@ type CrmConfig = {
   hmac_secret?: string;
 };
 
+type ConfigRow = { config: Record<string, unknown> | null };
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id required' }, { status: 400 });
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .select('config')
     .eq('organization_id', orgId)
     .eq('connector_id', CRM_CONNECTOR_ID)
-    .maybeSingle();
+    .maybeSingle() as unknown as { data: ConfigRow | null; error: { message: string } | null };
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       supports_auto_fetch: false,
       supports_spend_tracking: false,
       is_active: true,
-    },
+    } as unknown as never,
     { onConflict: 'id' },
   );
 
@@ -79,11 +81,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           hmac_secret: body.hmac_secret ?? '',
         },
         updated_at: new Date().toISOString(),
-      },
+      } as unknown as never,
       { onConflict: 'organization_id,connector_id' },
     );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: (error as { message: string }).message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

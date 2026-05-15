@@ -8,6 +8,8 @@ type CrmConfig = {
   bearer_token?: string;
 };
 
+type ConfigRow = { config: Record<string, unknown> | null };
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id required' }, { status: 400 });
@@ -19,7 +21,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .select('config')
     .eq('organization_id', orgId)
     .eq('connector_id', CRM_CONNECTOR_ID)
-    .maybeSingle();
+    .maybeSingle() as unknown as { data: ConfigRow | null; error: { message: string } | null };
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
