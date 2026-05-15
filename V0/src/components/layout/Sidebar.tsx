@@ -19,6 +19,7 @@ import {
   X,
   ChevronDown,
   ChevronRight,
+  Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +71,7 @@ const NAV: NavItem[] = [
       { label: 'Team Members', href: '/admin/users', icon: Users },
       { label: 'Alerts', href: '/admin/anomalies', icon: AlertTriangle },
       { label: 'Billing', href: '/admin/billing', icon: CreditCard },
+      { label: 'CRM Connection', href: '/admin/crm-connection', icon: Link2 },
     ],
   },
 ];

@@ -1,11 +1,45 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Zap, Globe, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Zap, Globe, CheckCircle2, XCircle, RefreshCw, Link2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ConnectorWithStatus } from '@/app/api/admin/connectors/route';
+
+type ToastState = { type: 'success' | 'error'; message: string } | null;
+
+function Toast({ toast, onDismiss }: { toast: ToastState; onDismiss: () => void }) {
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(id);
+  }, [toast, onDismiss]);
+
+  if (!toast) return null;
+
+  const isSuccess = toast.type === 'success';
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={[
+        'flex items-center gap-2 rounded-md border px-4 py-3 text-sm',
+        isSuccess
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          : 'border-red-200 bg-red-50 text-red-800',
+      ].join(' ')}
+    >
+      {isSuccess ? (
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+      ) : (
+        <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+      )}
+      {toast.message}
+    </div>
+  );
+}
 
 type ConnectorsResponse = {
   connectors: ConnectorWithStatus[];
@@ -23,6 +57,8 @@ type ConnectorCardProps = {
   connector: ConnectorWithStatus;
   onToggle: (id: string, next: boolean) => Promise<void>;
   toggling: boolean;
+  onMetaConnect?: () => Promise<void>;
+  connectingMeta?: boolean;
 };
 
 function ConnectorInitials({ name }: { name: string }) {
@@ -39,10 +75,12 @@ function ConnectorInitials({ name }: { name: string }) {
   );
 }
 
-function ConnectorCard({ connector, onToggle, toggling }: ConnectorCardProps) {
+function ConnectorCard({ connector, onToggle, toggling, onMetaConnect, connectingMeta }: ConnectorCardProps) {
   const handleToggle = () => {
     void onToggle(connector.id, !connector.is_enabled);
   };
+
+  const isMetaConnector = connector.id === 'facebook_ads';
 
   const healthLabel =
     connector.health_score != null
@@ -129,6 +167,36 @@ function ConnectorCard({ connector, onToggle, toggling }: ConnectorCardProps) {
           </a>
         )}
 
+        {/* Meta OAuth: Connected badge or Connect button */}
+        {isMetaConnector && (
+          connector.has_credentials ? (
+            <Badge variant="success" className="w-full justify-center text-xs py-1">
+              <CheckCircle2 className="h-3 w-3 mr-1" />
+              Connected
+            </Badge>
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              onClick={() => { void onMetaConnect?.(); }}
+              disabled={connectingMeta}
+            >
+              {connectingMeta ? (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  Connecting…
+                </>
+              ) : (
+                <>
+                  <Link2 className="h-3.5 w-3.5 mr-1" />
+                  Connect with Meta
+                </>
+              )}
+            </Button>
+          )
+        )}
+
         {/* Toggle button */}
         <Button
           variant={connector.is_enabled ? 'outline' : 'default'}
@@ -160,6 +228,18 @@ export function ConnectorsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [connectingMeta, setConnectingMeta] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
+
+  const searchParams = useSearchParams();
+
+  // Show success toast if redirected back after Meta OAuth
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    if (connected === 'meta') {
+      setToast({ type: 'success', message: 'Meta / Facebook Ads connected successfully!' });
+    }
+  }, [searchParams]);
 
   const fetchConnectors = useCallback(async () => {
     setLoading(true);
@@ -222,6 +302,22 @@ export function ConnectorsDashboard() {
     }
   }, []);
 
+  const handleMetaConnect = useCallback(async () => {
+    setConnectingMeta(true);
+    try {
+      const res = await fetch('/api/admin/connectors/meta-oauth', {
+        headers: { 'x-org-id': 'demo-org-id' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as { url: string; error?: string };
+      if (!json.url) throw new Error(json.error ?? 'No OAuth URL returned');
+      window.location.href = json.url;
+    } catch (err) {
+      setToast({ type: 'error', message: err instanceof Error ? err.message : 'Failed to start Meta OAuth' });
+      setConnectingMeta(false);
+    }
+  }, []);
+
   // Split into auto-fetch (digital) vs manual (portal/manual)
   const autoFetch = connectors.filter((c) => c.supports_auto_fetch);
   const manual = connectors.filter((c) => !c.supports_auto_fetch);
@@ -253,6 +349,10 @@ export function ConnectorsDashboard() {
 
   return (
     <div className="space-y-8">
+      {toast && (
+        <Toast toast={toast} onDismiss={() => setToast(null)} />
+      )}
+
       {/* Auto-fetch section */}
       {autoFetch.length > 0 && (
         <section>
@@ -273,6 +373,8 @@ export function ConnectorsDashboard() {
                 connector={connector}
                 onToggle={handleToggle}
                 toggling={togglingIds.has(connector.id)}
+                onMetaConnect={connector.id === 'facebook_ads' ? handleMetaConnect : undefined}
+                connectingMeta={connector.id === 'facebook_ads' ? connectingMeta : false}
               />
             ))}
           </div>

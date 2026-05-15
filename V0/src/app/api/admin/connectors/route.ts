@@ -19,6 +19,7 @@ export type ConnectorWithStatus = {
   // org-specific
   is_enabled: boolean;
   config: Record<string, unknown>;
+  has_credentials: boolean;
   last_synced_at: string | null;
   last_sync_error: string | null;
   health_score: number | null;
@@ -40,6 +41,7 @@ type OrgConnectorConfigRow = {
   connector_id: string;
   is_enabled: boolean;
   config: Record<string, unknown> | null;
+  credentials_encrypted: string | null;
   last_synced_at: string | null;
   last_sync_error: string | null;
   health_score: number | null;
@@ -61,7 +63,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data: orgConfigs } = await supabase
     .from('org_connector_configs')
-    .select('id, connector_id, is_enabled, config, last_synced_at, last_sync_error, health_score')
+    .select('id, connector_id, is_enabled, config, credentials_encrypted, last_synced_at, last_sync_error, health_score')
     .eq('organization_id', orgId);
 
   const configByKind = new Map(
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       credential_schema: def.credential_schema ?? [],
       is_enabled: orgCfg?.is_enabled ?? false,
       config: orgCfg?.config ?? {},
+      has_credentials: !!(orgCfg?.credentials_encrypted ?? (orgCfg?.config as Record<string, unknown> | null)?.access_token),
       last_synced_at: orgCfg?.last_synced_at ?? null,
       last_sync_error: orgCfg?.last_sync_error ?? null,
       health_score: orgCfg?.health_score ?? null,
