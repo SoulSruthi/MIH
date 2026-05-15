@@ -68,8 +68,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 500 });
 
-  // Create membership row
-  const { error: memberError } = await supabase
+  // Create membership row (cast: Supabase types not generated for this project)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: memberError } = await (supabase as any)
     .from('org_memberships')
     .insert({
       organization_id: orgId,
@@ -93,7 +94,8 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
 
   const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
     .from('org_memberships')
     .update({ role: body.role })
     .eq('id', body.membership_id)
