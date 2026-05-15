@@ -1,7 +1,7 @@
-import type { TenantContext } from '../tenancy/context.js';
-import { BASE_ROLE_GRANTS, APP_ROLE_GRANTS } from './grants.js';
-import { getCachedPermissions, setCachedPermissions } from './cache.js';
-import type { Permission } from './grants.js';
+import type { TenantContext } from '../tenancy/context';
+import { BASE_ROLE_GRANTS, APP_ROLE_GRANTS } from './grants';
+import { getCachedPermissions, setCachedPermissions } from './cache';
+import type { Permission } from './grants';
 
 export class ForbiddenError extends Error {
   constructor(action: Permission) {

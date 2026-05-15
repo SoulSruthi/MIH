@@ -1,5 +1,5 @@
-export { resolveDedup } from './dedup.js';
-export { getOrgDedupRules } from './rules.js';
+export { resolveDedup } from './dedup';
+export { getOrgDedupRules } from './rules';
 export {
   lookupPhoneIdentifier,
   getClusterPrimaryLeadId,
@@ -10,7 +10,7 @@ export {
   updateUniqueLeadOnDuplicate,
   updateRawLeadDedup,
   writeAuditLog,
-} from './graph.js';
+} from './graph';
 export type {
   DedupResult,
   DedupDeps,
@@ -20,4 +20,4 @@ export type {
   OrgDedupRules,
   UniqueLead,
   TouchSource,
-} from './types.js';
+} from './types';

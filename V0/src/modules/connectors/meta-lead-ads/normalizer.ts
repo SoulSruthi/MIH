@@ -1,6 +1,6 @@
-import { normalizePhoneE164, PhoneNormalizationError } from '../_kernel/normalizer.js';
-import type { RawLeadInput } from '../_kernel/types.js';
-import type { MetaLeadPayload } from './types.js';
+import { normalizePhoneE164, PhoneNormalizationError } from '../_kernel/normalizer';
+import type { RawLeadInput } from '../_kernel/types';
+import type { MetaLeadPayload } from './types';
 
 /** Known Meta form field name variants → canonical key. */
 const FIELD_ALIASES: Record<string, string> = {

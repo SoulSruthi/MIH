@@ -6,6 +6,15 @@ vi.mock('../../src/modules/identity/rules.js', () => ({
   getOrgDedupRules: vi.fn(),
 }));
 
+// Mock preference + external-id so dedup tests don't need real implementations
+vi.mock('../../src/modules/leads/external-id.js', () => ({
+  generateCrmExternalId: vi.fn().mockReturnValue('mih_testco_abc123def456789012345678901234'),
+}));
+
+vi.mock('../../src/modules/leads/preference.js', () => ({
+  normalizePreferences: vi.fn().mockReturnValue({ preference_bhk: null, preference_budget_band: null, preference_location: null }),
+}));
+
 vi.mock('../../src/modules/identity/graph.js', () => ({
   lookupPhoneIdentifier: vi.fn(),
   getClusterPrimaryLeadId: vi.fn(),
@@ -50,6 +59,7 @@ function makeRawLead(overrides: Partial<RawLeadRef> = {}): RawLeadRef {
 function makeDeps(overrides: Partial<DedupDeps> = {}): DedupDeps {
   return {
     supabaseAdmin: STUB_SUPABASE,
+    orgSlug: 'testco',
     emitDedupDecided: vi.fn().mockResolvedValue(undefined),
     requestId: 'req-test-1',
     ...overrides,

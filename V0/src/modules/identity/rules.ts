@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { OrgDedupRules } from './types.js';
+import type { OrgDedupRules } from './types';
 
 const DEFAULTS: OrgDedupRules = {
   phone_window_hours: 24,

@@ -1,4 +1,4 @@
-import { normalizePhoneE164, PhoneNormalizationError } from '../connectors/_kernel/normalizer.js';
+import { normalizePhoneE164, PhoneNormalizationError } from '../connectors/_kernel/normalizer';
 
 export { PhoneNormalizationError };
 

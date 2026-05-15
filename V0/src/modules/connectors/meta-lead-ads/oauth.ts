@@ -1,5 +1,5 @@
-import type { MetaOAuthTokenResponse, MetaLongLivedTokenResponse, MetaSourceConfig } from './types.js';
-import type { OAuthTokenSet, SourceConfig } from '../_kernel/types.js';
+import type { MetaOAuthTokenResponse, MetaLongLivedTokenResponse, MetaSourceConfig } from './types';
+import type { OAuthTokenSet, SourceConfig } from '../_kernel/types';
 
 const GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 const SCOPES = ['ads_management', 'pages_read_engagement', 'leads_retrieval'].join(',');

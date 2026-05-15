@@ -1,6 +1,6 @@
-import { fetchDailyInsights } from './client.js';
-import type { SpendRecord, DecryptedCredentials, SourceConfig } from '../_kernel/types.js';
-import type { MetaSourceConfig } from './types.js';
+import { fetchDailyInsights } from './client';
+import type { SpendRecord, DecryptedCredentials, SourceConfig } from '../_kernel/types';
+import type { MetaSourceConfig } from './types';
 
 const USD_TO_INR = 83.5; // Fallback rate — production should use live rate from FX API
 
