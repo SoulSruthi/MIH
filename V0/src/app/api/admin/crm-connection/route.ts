@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // CRM config is stored in org_connector_configs using a virtual connector_id = 'crm_integration'.
 // We use the config jsonb column to store all CRM connection settings.

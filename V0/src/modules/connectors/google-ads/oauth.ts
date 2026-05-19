@@ -1,4 +1,4 @@
-import type { OAuthTokenSet } from '../_kernel/types.js';
+import type { OAuthTokenSet } from '../_kernel/types';
 
 const GOOGLE_OAUTH_BASE = 'https://accounts.google.com/o/oauth2';
 const SCOPES = ['https://www.googleapis.com/auth/adwords'].join(' ');

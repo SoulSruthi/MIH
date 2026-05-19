@@ -1,4 +1,4 @@
-import type { PortalKind, PortalLead, PortalConfig } from './types.js';
+import type { PortalKind, PortalLead, PortalConfig } from './types';
 
 const PORTAL_BASE_URLS: Record<PortalKind, string> = {
   '99acres': 'https://api.99acres.com/api/v1',

@@ -1,4 +1,4 @@
-import type { PortalKind, PortalLead } from './types.js';
+import type { PortalKind, PortalLead } from './types';
 
 // ---------------------------------------------------------------------------
 // Per-portal payload parsers

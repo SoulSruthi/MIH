@@ -1,6 +1,6 @@
-import { normalizePhoneE164 } from '../_kernel/normalizer.js';
-import type { RawLeadInput } from '../_kernel/types.js';
-import type { PortalLead } from './types.js';
+import { normalizePhoneE164 } from '../_kernel/normalizer';
+import type { RawLeadInput } from '../_kernel/types';
+import type { PortalLead } from './types';
 
 export function normalizePortalLead(lead: PortalLead): RawLeadInput {
   return {

@@ -1,5 +1,7 @@
 import { CrmConnectionConfig } from '@/components/admin/CrmConnectionConfig';
 
+export const dynamic = 'force-dynamic';
+
 export default function CrmConnectionPage() {
   return (
     <div className="space-y-6">

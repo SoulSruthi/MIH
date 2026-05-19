@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { PortalKind } from './types.js';
-import { parsePortalWebhookPayload } from './webhook.js';
-import { normalizePortalLead } from './normalizer.js';
-import { ingest } from '../../ingestion/index.js';
+import type { PortalKind } from './types';
+import { parsePortalWebhookPayload } from './webhook';
+import { normalizePortalLead } from './normalizer';
+import { ingest } from '../../ingestion/index';
 
 export type PortalWebhookResult = {
   accepted: number;

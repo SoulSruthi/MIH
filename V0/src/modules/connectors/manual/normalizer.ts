@@ -1,6 +1,6 @@
-import { normalizePhoneE164 } from '../_kernel/normalizer.js';
-import type { RawLeadInput } from '../_kernel/types.js';
-import type { ManualLeadInput } from './types.js';
+import { normalizePhoneE164 } from '../_kernel/normalizer';
+import type { RawLeadInput } from '../_kernel/types';
+import type { ManualLeadInput } from './types';
 
 export function normalizeManualLead(lead: ManualLeadInput): RawLeadInput {
   return {

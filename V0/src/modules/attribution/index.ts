@@ -1,5 +1,5 @@
-export { computeMetrics, aggregateFunnelCounts } from './compute.js';
-export { computeAndWriteRollup, recomputeRollupsForRange } from './rollup.js';
+export { computeMetrics, aggregateFunnelCounts } from './compute';
+export { computeAndWriteRollup, recomputeRollupsForRange } from './rollup';
 export type {
   AttributionModel,
   FunnelStage,
@@ -7,4 +7,4 @@ export type {
   FunnelCounts,
   SpendData,
   AttributionRollup,
-} from './types.js';
+} from './types';

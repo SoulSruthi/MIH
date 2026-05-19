@@ -1,5 +1,7 @@
 import { ManualLeadEntry } from '@/components/leads/ManualLeadEntry';
 
+export const dynamic = 'force-dynamic';
+
 export default function LeadEntryPage() {
   return (
     <div className="space-y-6 max-w-3xl">

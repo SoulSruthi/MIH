@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+
+export const dynamic = 'force-dynamic';
 import { RoiDashboard } from '@/components/dashboard/RoiDashboard';
 
 export const metadata: Metadata = {

@@ -1,5 +1,7 @@
 import { DedupRulesEditor } from '@/components/admin/DedupRulesEditor';
 
+export const dynamic = 'force-dynamic';
+
 export default function DedupRulesPage() {
   return (
     <div className="space-y-6 max-w-2xl">

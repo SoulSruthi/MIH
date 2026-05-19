@@ -34,13 +34,13 @@ export type LeadDetail = {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id required' }, { status: 400 });
 
   const supabase = getSupabaseAdmin();
-  const { id } = params;
+  const { id } = await params;
 
   // Fetch unique lead
   const { data: lead, error: leadErr } = await supabase

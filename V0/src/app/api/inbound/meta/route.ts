@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from '../../../../modules/connectors/meta-lead-ads/webhook.js';
-import type { MetaWebhookBody } from '../../../../modules/connectors/meta-lead-ads/types.js';
-import { fetchLead } from '../../../../modules/connectors/meta-lead-ads/client.js';
-import { normalizeMetaLead } from '../../../../modules/connectors/meta-lead-ads/normalizer.js';
-import { ingest } from '../../../../modules/ingestion/index.js';
-import { getSupabaseAdmin } from '../../../../lib/supabase-admin.js';
+import { verifyMetaSignature, handleVerificationChallenge, parseLeadgenNotifications } from '@/modules/connectors/meta-lead-ads/webhook';
+import type { MetaWebhookBody } from '@/modules/connectors/meta-lead-ads/types';
+import { fetchLead } from '@/modules/connectors/meta-lead-ads/client';
+import { normalizeMetaLead } from '@/modules/connectors/meta-lead-ads/normalizer';
+import { ingest } from '@/modules/ingestion/index';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**

@@ -1,5 +1,7 @@
 import { AnomalyAlerts } from '@/components/admin/AnomalyAlerts';
 
+export const dynamic = 'force-dynamic';
+
 export default function AnomaliesPage() {
   return (
     <div className="space-y-6">

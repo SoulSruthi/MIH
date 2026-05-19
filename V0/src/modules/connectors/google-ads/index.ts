@@ -1,14 +1,14 @@
-import { registerConnector } from '../_kernel/registry.js';
+import { registerConnector } from '../_kernel/registry';
 import type {
   SourceConnector,
   DecryptedCredentials,
   SourceConfig,
   SpendRecord,
-} from '../_kernel/types.js';
-import { normalizeGoogleAdsLead } from './normalizer.js';
-import { fetchGoogleAdsLeads, fetchGoogleAdsSpend } from './client.js';
-import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode } from './oauth.js';
-import type { GoogleAdsCreds } from './types.js';
+} from '../_kernel/types';
+import { normalizeGoogleAdsLead } from './normalizer';
+import { fetchGoogleAdsLeads, fetchGoogleAdsSpend } from './client';
+import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode } from './oauth';
+import type { GoogleAdsCreds } from './types';
 
 // Fallback conversion rate — production should use a live FX API
 const USD_TO_INR = 83.5;
@@ -90,4 +90,4 @@ const googleAdsConnector: SourceConnector = {
 registerConnector(googleAdsConnector);
 
 export { googleAdsConnector };
-export { normalizeGoogleAdsLead } from './normalizer.js';
+export { normalizeGoogleAdsLead } from './normalizer';

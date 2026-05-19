@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
-import { normalizePhoneE164 } from '@/modules/connectors/_kernel/normalizer.js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { normalizePhoneE164 } from '@/modules/connectors/_kernel/normalizer';
 
 const CRM_CONNECTOR_ID = 'crm_integration';
 

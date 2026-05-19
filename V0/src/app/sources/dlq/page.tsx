@@ -1,4 +1,6 @@
-import { DlqTable } from '@/components/sources/DlqTable.js';
+import { DlqTable } from '@/components/sources/DlqTable';
+
+export const dynamic = 'force-dynamic';
 
 export default function DlqPage() {
   return (

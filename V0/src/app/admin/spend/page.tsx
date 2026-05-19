@@ -1,5 +1,7 @@
 import { SpendTracker } from '@/components/admin/SpendTracker';
 
+export const dynamic = 'force-dynamic';
+
 export default function SpendPage() {
   return (
     <div className="space-y-6">

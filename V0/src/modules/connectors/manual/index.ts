@@ -1,7 +1,7 @@
-import { registerConnector } from '../_kernel/registry.js';
-import type { SourceConnector, DecryptedCredentials, SourceConfig } from '../_kernel/types.js';
-import { normalizeManualLead } from './normalizer.js';
-import type { ManualLeadInput } from './types.js';
+import { registerConnector } from '../_kernel/registry';
+import type { SourceConnector, DecryptedCredentials, SourceConfig } from '../_kernel/types';
+import { normalizeManualLead } from './normalizer';
+import type { ManualLeadInput } from './types';
 
 export const manualConnector: SourceConnector = {
   kind: 'manual',
@@ -29,4 +29,4 @@ export const manualConnector: SourceConnector = {
 
 registerConnector(manualConnector);
 
-export { normalizeManualLead } from './normalizer.js';
+export { normalizeManualLead } from './normalizer';

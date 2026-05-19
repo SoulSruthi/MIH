@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
-import type { AnomalyAlert } from '@/modules/anomalies/index.js';
+import type { AnomalyAlert } from '@/modules/anomalies/index';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY ?? 'placeholder');
+  return _resend;
+}
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'MIH Alerts <alerts@mih.app>';
 
@@ -58,7 +62,7 @@ export async function sendAnomalyAlertEmail(
 ): Promise<void> {
   const subject = `[MIH] ${alerts.length} anomaly alert(s) for ${orgName}`;
 
-  const { error } = await resend.emails.send({
+  const { error } = await getResend().emails.send({
     from: FROM_EMAIL,
     to,
     subject,

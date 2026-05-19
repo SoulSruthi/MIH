@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AttributionRollup } from './types.js';
-import { computeMetrics, aggregateFunnelCounts } from './compute.js';
-import { getTotalSpendForPeriod } from '../spend/index.js';
+import type { AttributionRollup } from './types';
+import { computeMetrics, aggregateFunnelCounts } from './compute';
+import { getTotalSpendForPeriod } from '../spend/index';
 
 export async function computeAndWriteRollup(
   supabase: SupabaseClient,

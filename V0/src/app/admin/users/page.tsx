@@ -1,5 +1,7 @@
 import { UserManagement } from '@/components/admin/UserManagement';
 
+export const dynamic = 'force-dynamic';
+
 export default function UsersPage() {
   return (
     <div className="space-y-6">

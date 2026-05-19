@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from './supabase-admin.js';
-import { ingestPortalWebhook } from '../modules/connectors/portals/ingest-webhook.js';
-import type { PortalKind } from '../modules/connectors/portals/types.js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { ingestPortalWebhook } from '@/modules/connectors/portals/ingest-webhook';
+import type { PortalKind } from '@/modules/connectors/portals/types';
 
 /**
  * Shared handler for all portal webhook inbound routes (99acres, MagicBricks, Housing.com).

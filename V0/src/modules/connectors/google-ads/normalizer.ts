@@ -1,6 +1,6 @@
-import { normalizePhoneE164 } from '../_kernel/normalizer.js';
-import type { RawLeadInput } from '../_kernel/types.js';
-import type { GoogleAdsLead } from './types.js';
+import { normalizePhoneE164 } from '../_kernel/normalizer';
+import type { RawLeadInput } from '../_kernel/types';
+import type { GoogleAdsLead } from './types';
 
 function getColumn(cols: GoogleAdsLead['columnData'], name: string): string {
   return cols.find((c) => c.columnName === name)?.stringValue ?? '';

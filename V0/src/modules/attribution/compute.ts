@@ -1,4 +1,4 @@
-import type { FunnelCounts, SpendData, AttributionRollup, AttributionModel } from './types.js';
+import type { FunnelCounts, SpendData, AttributionRollup, AttributionModel } from './types';
 
 export function computeMetrics(
   orgId: string,

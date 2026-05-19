@@ -1,4 +1,6 @@
-import { BillingDashboard } from '@/components/admin/BillingDashboard.js';
+import { BillingDashboard } from '@/components/admin/BillingDashboard';
+
+export const dynamic = 'force-dynamic';
 
 export default function BillingPage() {
   return (

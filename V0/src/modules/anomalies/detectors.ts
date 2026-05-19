@@ -1,4 +1,4 @@
-import type { AnomalyAlert } from './types.js';
+import type { AnomalyAlert } from './types';
 
 type SourceRollup = {
   sourceId: string;

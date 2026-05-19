@@ -1,8 +1,8 @@
-import { registerConnector } from '../_kernel/registry.js';
-import type { SourceConnector, DecryptedCredentials, SourceConfig } from '../_kernel/types.js';
-import { fetchPortalLeads } from './client.js';
-import { normalizePortalLead } from './normalizer.js';
-import type { PortalKind, PortalConfig, PortalLead } from './types.js';
+import { registerConnector } from '../_kernel/registry';
+import type { SourceConnector, DecryptedCredentials, SourceConfig } from '../_kernel/types';
+import { fetchPortalLeads } from './client';
+import { normalizePortalLead } from './normalizer';
+import type { PortalKind, PortalConfig, PortalLead } from './types';
 
 function makePortalConnector(
   kind: PortalKind,
@@ -69,4 +69,4 @@ registerConnector(acres99Connector);
 registerConnector(magicBricksConnector);
 registerConnector(housingComConnector);
 
-export { normalizePortalLead } from './normalizer.js';
+export { normalizePortalLead } from './normalizer';

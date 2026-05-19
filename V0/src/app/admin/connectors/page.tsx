@@ -1,5 +1,7 @@
 import { ConnectorsDashboard } from '@/components/admin/ConnectorsDashboard';
 
+export const dynamic = 'force-dynamic';
+
 export default function ConnectorsPage() {
   return (
     <div className="space-y-6">

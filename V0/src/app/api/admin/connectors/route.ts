@@ -108,7 +108,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const supabase = getSupabaseAdmin();
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('org_connector_configs')
     .upsert(
       {

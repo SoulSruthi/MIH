@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { SpendInput, SpendEntry, SpendCompletenessStatus } from './types.js';
+import type { SpendInput, SpendEntry, SpendCompletenessStatus } from './types';
 
 export async function upsertSpend(
   supabase: SupabaseClient,
@@ -81,4 +81,4 @@ export function getSpendCompleteness(
   return 'complete';
 }
 
-export type { DataSource, SpendEntry, SpendInput, SpendSummary, SpendCompletenessStatus } from './types.js';
+export type { DataSource, SpendEntry, SpendInput, SpendSummary, SpendCompletenessStatus } from './types';

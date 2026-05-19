@@ -1,6 +1,6 @@
-import { inngest } from '../client.js';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
-import { upsertSpend } from '@/modules/spend/index.js';
+import { inngest } from '../client';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { upsertSpend } from '@/modules/spend/index';
 
 interface MetaInsightsResponse {
   data?: Array<{

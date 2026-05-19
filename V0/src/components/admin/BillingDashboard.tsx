@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, ExternalLink, RefreshCw, Users, Zap, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.js';
-import { Badge } from '@/components/ui/badge.js';
-import { Button } from '@/components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table.js';
+} from '@/components/ui/table';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

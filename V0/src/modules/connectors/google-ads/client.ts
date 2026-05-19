@@ -1,4 +1,4 @@
-import type { GoogleAdsCreds, GoogleAdsLead, GoogleAdsSpend } from './types.js';
+import type { GoogleAdsCreds, GoogleAdsLead, GoogleAdsSpend } from './types';
 
 const GOOGLE_ADS_API_VERSION = 'v17';
 const GOOGLE_ADS_BASE_URL = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;

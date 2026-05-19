@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 type TokenResponse = {
   access_token?: string;

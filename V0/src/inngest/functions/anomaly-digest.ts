@@ -1,7 +1,7 @@
-import { inngest } from '../client.js';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
-import { detectAllAnomalies } from '@/modules/anomalies/index.js';
-import { sendAnomalyAlertEmail } from '@/modules/notifications/email.js';
+import { inngest } from '../client';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { detectAllAnomalies } from '@/modules/anomalies/index';
+import { sendAnomalyAlertEmail } from '@/modules/notifications/email';
 
 type SourceRow = { organization_id: string };
 

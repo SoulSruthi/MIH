@@ -1,6 +1,6 @@
-import { inngest } from '../client.js';
-import { getSupabaseAdmin } from '@/lib/supabase-admin.js';
-import { recomputeRollupsForRange } from '@/modules/attribution/index.js';
+import { inngest } from '../client';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { recomputeRollupsForRange } from '@/modules/attribution/index';
 
 type SourceRow = { organization_id: string };
 
