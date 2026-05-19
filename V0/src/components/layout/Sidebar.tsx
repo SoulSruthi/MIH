@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
   Users,
   BarChart3,
@@ -20,7 +20,9 @@ import {
   ChevronDown,
   ChevronRight,
   Link2,
+  LogOut,
 } from 'lucide-react';
+import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
 
 type NavItem = {
@@ -31,11 +33,12 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
+  { label: 'Home', href: '/dashboard', icon: LayoutDashboard },
   {
     label: 'Leads',
     icon: Users,
     children: [
-      { label: 'All Leads', href: '/leads', icon: LayoutDashboard },
+      { label: 'All Leads', href: '/leads', icon: Users },
       { label: 'Add Leads', href: '/leads/entry', icon: PlusCircle },
     ],
   },
@@ -144,11 +147,31 @@ function NavGroup({ item, onNavigate }: { item: NavItem; onNavigate?: () => void
 }
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, [supabase.auth]);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  }
+
   return (
     <aside className="flex h-full w-56 flex-col bg-white border-r border-slate-200">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2.5 px-4 border-b border-slate-200">
-        <Link href="/leads" onClick={onNavigate} className="flex items-center gap-2 font-bold text-slate-900 text-base">
+        <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2 font-bold text-slate-900 text-base">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white text-sm font-bold">
             M
           </span>
@@ -167,9 +190,20 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-slate-100 px-4 py-3">
-        <p className="text-xs text-slate-400">demo-org-id</p>
-        <p className="text-[10px] text-slate-300 mt-0.5">Marketing Intelligence Hub</p>
+      <div className="border-t border-slate-100 px-4 py-3 space-y-2">
+        {userEmail && (
+          <p className="text-xs text-slate-500 truncate" title={userEmail}>
+            {userEmail}
+          </p>
+        )}
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Sign out
+        </button>
+        <p className="text-[10px] text-slate-300">Marketing Intelligence Hub</p>
       </div>
     </aside>
   );
