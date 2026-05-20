@@ -1,0 +1,6 @@
+{
+  "rootDirectory": "V0",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install"
+}
