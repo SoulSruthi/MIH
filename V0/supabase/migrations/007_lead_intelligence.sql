@@ -25,12 +25,12 @@ ALTER TABLE raw_leads
 -- Used by /api/leads/stats
 -- -----------------------------------------------------------------
 
-CREATE VIEW source_lead_stats AS
+CREATE OR REPLACE VIEW source_lead_stats AS
 SELECT
   s.organization_id,
   s.id                                                        AS source_id,
-  s.name                                                      AS source_name,
-  s.source_type,
+  s.display_name                                              AS source_name,
+  s.source_kind,
   COUNT(rl.id)                                                AS total_leads,
   COUNT(rl.id) FILTER (WHERE rl.dedup_status = 'unique')     AS unique_count,
   COUNT(rl.id) FILTER (WHERE rl.dedup_status = 'duplicate')  AS duplicate_count,
@@ -47,7 +47,7 @@ FROM sources s
 LEFT JOIN raw_leads rl
   ON rl.source_id = s.id
   AND rl.organization_id = s.organization_id
-GROUP BY s.organization_id, s.id, s.name, s.source_type;
+GROUP BY s.organization_id, s.id, s.display_name, s.source_kind;
 
 -- RLS: row-level security on the view is enforced by the underlying tables.
 -- Direct access restricted to service_role; app layer filters by org_id.
