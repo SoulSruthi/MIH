@@ -1,8 +1,10 @@
 import { serve } from 'inngest/next';
 import { inngest } from '@/inngest/client';
-import { crmHandoffFunction } from '@/inngest/functions/crm-handoff';
+import { spendSyncFunction } from '@/inngest/functions/spend-sync';
+import { attributionRollupFunction } from '@/inngest/functions/attribution-rollup';
+import { anomalyDigestFunction } from '@/inngest/functions/anomaly-digest';
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [crmHandoffFunction],
+  functions: [spendSyncFunction, attributionRollupFunction, anomalyDigestFunction],
 });

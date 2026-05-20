@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+
+export const dynamic = 'force-dynamic';
 import { LeadsDashboard } from '@/components/leads/LeadsDashboard';
 
 export const metadata: Metadata = {

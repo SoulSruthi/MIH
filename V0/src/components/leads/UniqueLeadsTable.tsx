@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   Table,
@@ -193,7 +194,12 @@ export function UniqueLeadsTable() {
                 <TableRow key={lead.id}>
                   <TableCell>
                     <div>
-                      <span className="font-medium text-slate-900">{lead.primary_name}</span>
+                      <Link
+                        href={`/leads/${lead.id}`}
+                        className="font-medium text-slate-900 hover:text-blue-600 hover:underline transition-colors"
+                      >
+                        {lead.primary_name}
+                      </Link>
                       <KnownNamesList
                         names={lead.known_names}
                         primaryName={lead.primary_name}
