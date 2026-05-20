@@ -33,8 +33,8 @@
 | 07 | Budget Planning Engine | FY → Q → M → W decomposition + dynamic reallocation | 16 d | Phase 3 | Not started |
 | 08 | Channel Partner Management | CP registry + push API + 2.5% commission engine | 18 d | Phase 3 | Not started |
 | 09 | Referral Program | Existing-customer referrals + 1.5% commission + re-engagement | 14 d | Phase 3 | Not started |
-| 10 | ROI Reporting | CPB-anchored dashboards + spend + plan-vs-actual variance | 16 d | Phase 4 | **Partial** — basic ROI dashboard exists; CPB-anchor, variance, comparison models missing |
-| 11 | Manual Reconciliation | Disputed queue + Salesforce import + comment parsing | 12 d | Phase 4 | Not started — spec pending upload |
+| 10 | ROI Reporting | CPB-anchored dashboards + spend + plan-vs-actual variance | 16 d | Phase 4 | **Partial** — basic ROI dashboard exists; CPB-anchor, variance, comparison models, spend contracts missing |
+| 11 | Manual Reconciliation | Disputed queue + Salesforce import + comment parsing | 12 d | Phase 4 | Not started |
 
 **Total spec effort:** ~146 dev-days  
 **Existing implementation reuse:** ~30–40% (foundation, connectors, basic dedup)
@@ -494,13 +494,126 @@ PHASE 4 — INTELLIGENCE + RECONCILIATION
 
 ## 6. Phase 4 — Intelligence + Reconciliation
 
-### Spec 10 — ROI Reporting — Pending Upload
-> Spec 10 will be planned once uploaded.  
-> Per Spec 00: Spec 10 can start after Spec 04 + Spec 06 land. Does not need all upstream V1.
+### Spec 10 — Performance Tracking & ROI Reporting (16 days)
+**Spec doc:** `10-roi-reporting.md`  
+**Depends on:** Spec 04 (Attribution), Spec 05 (Site Visits), Spec 06 (Projects), Spec 07 (Budget Plans), Spec 08 (CP), Spec 09 (Referral)  
+**Blocks:** Nothing — terminal consumer domain. The face of MIH that the CMO opens every morning.
 
-### Spec 11 — Manual Reconciliation — Pending Upload
-> Spec 11 will be planned once uploaded.  
-> Per Spec 00: Spec 11 can start after Spec 04 V0 lands; matures with each upstream module.
+> **North-star metric (from spec — exact):** "Cost per booking is the north star. Cost per lead is vanity. Cost per qualified lead is mid-funnel. CPB ties spend to revenue." Every other module produces data; this one turns it into the dashboards that decide budget.
+
+#### What the spec requires (exact):
+- **`mih.spend_entries`** — spend line items; `entry_kind: api_pulled|manual|csv|invoice|recurring_amortized`; idempotent via `UNIQUE (org_id, ingestion_source, external_ref)`
+- **`mih.spend_contracts`** — long-running contracts (e.g. 6-month portal contract); `amortization: monthly|weekly|one_time|custom`; system auto-generates monthly `spend_entries` rows on contract creation; future rows deleted on early termination
+- **`mih.metric_snapshots`** — pre-aggregated JSONB for fast dashboards; `dimension_key: {project_id, source_id, medium, cp_id, model_id}`; `metric_set: {leads, qual_leads, sv_sched, sv_done, bookings, booking_value, spend, cpb, cpql, cpl}`; single writer queue per `(org, granularity, period)` for concurrent-safe refresh
+- **`mih.variance_alerts`** — pacing/threshold alerts; `alert_type: spend_overrun|booking_shortfall|cpb_spike|source_underperforming`; severity routing: info → digest, warning → next-morning email, critical → immediate
+- **`mih.saved_reports`** — custom report definitions with `schedule JSONB` for delivery cadence
+- **Spend ingestion (3 paths):** API auto-pull (Meta/Google daily cron at 2am IST); manual entry + CSV (portals, BTL invoices); contract amortization (6-month portal → 6 monthly entries)
+- **CPB = total_spend / bookings_count** per `(source_id, project_id, period)`; zero-bookings → display "—" never crash; store in `metric_snapshots` with 5s debounce on event-driven refresh
+- **Funnel dashboard:** Lead → Qualified → SV Scheduled → SV Completed → Booked, per source per project; stage conversion rates; bottleneck stage highlighted per source
+- **Plan-vs-actual variance:** against Spec 07 plan; triggers on: spend_actual > 115% of spend_planned → 'spend_overrun'; bookings_actual < 70% paced target → 'booking_shortfall'; CPB > 150% historical avg → 'cpb_spike'
+- **Comparison model view:** first-touch (operational) vs last-touch vs time-decay side-by-side; labeled "decision-support NOT a model swap recommendation"; RBAC — only ops/CMO see all models
+- **Orphan-spend detection:** weekly cron; spend > ₹50K AND bookings = 0 AND leads > 0 → `GET /api/spend/unallocated` → ops investigates → may raise Spec 11 reconciliation item
+- Events consumed: `attribution.assigned`, `attribution.reversed`, `mih.site_visit.recorded`, `crm.lead.qualified`, `budget.plan_activated`, `cp.commission_*`, `referrer.commission_*`
+- Events emitted: `variance.alert_raised`, `metric.snapshot_refreshed`, `report.scheduled_delivery`
+
+#### Key rules (per spec — exact):
+- All period boundaries in IST midnight; UTC stored underneath
+- CPB shown to 0 decimal places in ₹ (e.g. "₹47,500") — never NaN or /0
+- Spend API vs invoice drift: accept ±2% drift; flag larger discrepancies for ops review
+- Comparison model is read-only insight — only `operational_model_id` drives commission calculations (Spec 07/08/09)
+- Per-CP CPB shown to other CPs via Spec 08 portal, NOT Spec 10 dashboards (RBAC separation)
+
+#### Build phases (per spec):
+| Phase | Capabilities | Effort |
+|---|---|---|
+| V0 | Spend entry manual + CSV, CPB/CPQL/CPL by source, basic funnel dashboard | 5 days |
+| V1 | Meta + Google API spend pull, contract amortization, plan-vs-actual variance with alerts, comparison-model view | 6 days |
+| V1.5 | Saved/custom reports, scheduled exports, orphan-spend detection, per-persona dashboard presets | 5 days |
+| V2 | Predictive CPB forecast, AI-narrative insights, real-time streaming | OUT OF SLOT |
+
+#### Acceptance criteria (from spec — do not deviate):
+- Manual spend entry of ₹2L on Meta for Project Alpha appears in CPB calculation within 30s
+- Meta API connector pulls daily spend without duplicates over a 30-day chaos test
+- Contract amortization correctly splits ₹12L over 6 months as 6 monthly entries
+- Dashboard renders Project Alpha funnel with all 5 stages × all sources in <2s
+- CPB shown to 0 decimal places in ₹; never NaN or /0
+- Plan-vs-actual variance updates within 1 minute of new attribution event
+- Spend overrun >15% → warning alert; >25% → critical
+- Comparison model shows first/last/time-decay side-by-side for any source-period
+- Orphan-spend detection surfaces for source with >₹50K spend + 0 bookings + leads_count > 0
+- Scheduled PDF export delivered to email within 5 minutes of cron time
+- Saved reports survive source archival without breaking
+
+---
+
+### Spec 11 — Manual Reconciliation & Operations (12 days)
+**Spec doc:** `11-manual-reconciliation.md`  
+**Depends on:** Spec 02, 03, 04, 05, 08, 09  
+**Blocks:** Nothing — terminal ops domain. The safety valve.
+
+> No matter how sophisticated the attribution engine is, 5–10% of leads will need human judgment. The source doc is explicit: "Sales rep claims he converted via phone call. If no tracked call exists, it doesn't get accepted." "Comments in Salesforce say 'this customer originally came from hoarding at OMR' — we need to read those and re-attribute." This is the **operational trust layer** — without it, edge cases pile up invisibly and the system loses credibility within 60 days.
+
+#### What the spec requires (exact):
+- **`mih.reconciliation_items`** — unified queue for ALL edge cases. `item_type` covers 10 types:
+  - `disputed_cp_credit` — from Spec 04 CP-claim block rule
+  - `disputed_referral_credit` — from Spec 04, referrer credit blocked
+  - `manual_call_no_tracking` — from Spec 02 / CRM event
+  - `unmatched_walk_in` — from Spec 05
+  - `comment_source_override` — from CRM call notes
+  - `telecaller_claim_audit` — from CRM activity logs
+  - `sales_rep_unattended_lead` — SLA breach from CRM
+  - `low_conf_identity_merge` — from Spec 03
+  - `source_disabled_violation` — from Spec 02
+  - `orphan_spend_investigation` — from Spec 10
+  - State machine: `open → in_review → resolved → escalated → closed → expired`
+  - `severity: low|normal|high|critical` driven by `monetary_impact`
+  - `sla_deadline_at` configurable per `item_type` (default 48h for disputed_cp_credit)
+  - `context JSONB` — snapshot of all relevant data for ops at resolution time
+  - `resolution_actions JSONB` — what downstream API calls were made
+- **`mih.reconciliation_audit`** — append-only audit log; `action: state_change|note_added|assigned|evidence_attached|resolution_set`; immutable (re-resolution creates new entry, never deletes)
+- **`mih.sf_import_jobs`** — Salesforce migration tracking; `job_kind: leads|contacts|opportunities|calls|comments|full_export`; `mapping_config JSONB`; streaming with 5K-row batches; partial success supported
+- **`mih.sf_import_row_errors`** — per-row error log with `raw_row JSONB` for debugging
+- **`mih.comment_extractions`** — AI-parsed source mentions; `extracted_source_hint` (e.g. "hoarding at OMR junction"); `candidate_source_id` MUST exist in `mih.sources` (hard constraint — prevents hallucinations); `confidence`; never auto-apply below 0.95; queue item created for >0.8 confidence mismatches
+- **Resolution actions write back to source domains:** override attribution (calls Spec 04 API), force merge/unmerge (calls Spec 03), restore CP credit (creates Spec 08 accrual)
+- **Bulk resolution:** two-step confirm; creates `bulk_job_id` for partial reversal; returns summary of succeeded/failed; ops manually handles failures
+- **SLA expiry:** open items past deadline → emit `reconciliation.sla_breached` → severity escalated → after 7 days unresolved → auto-state='expired' with no-action (preserves audit)
+- **Salesforce import (multi-file flow):** leads → contacts → opportunities → calls → comments; `backfill=true` flag suppresses commission accrual for historical data; attribution runs but is historical-only; saved mapping templates per object type
+- Events emitted: `reconciliation.item_resolved`, `reconciliation.attribution_override`, `reconciliation.cluster_merge_forced`, `reconciliation.cp_credit_restored`, `reconciliation.sla_breached`, `sf_import.job_completed`
+
+#### Key rules (per spec — exact):
+- Dedup queue items by `(item_type, cluster_id, origin_event_id)` — collapse into single item
+- Bulk resolution requires two-step confirmation
+- Resolutions are immutable — re-resolution creates a NEW resolution entry, never deletes
+- SF backfill runs attribution but **suppresses commission accrual**; historical-only mode
+- AI comment extraction: `candidate_source_id` MUST exist in `mih.sources`; else discard (prevents hallucinated sources entering production)
+- Ops override rate per user surfaced to manager (high override-rate flagged)
+- Every resolution action emits its own reversible event with `superseded_by` chain preserved
+
+#### Key workflows (per spec — exact):
+1. **CP credit dispute:** CP raises via Spec 08 portal → item enters in_review → ops reviews full context (original Meta lead Sep 5, CP push Sep 28, Meta lead went cold, CP brought to site visit Oct 2, booking Oct 15) → resolution='overridden' → calls Spec 04 override API → Spec 08 creates accrual
+2. **Comment-based override:** CRM call note "customer saw our hoarding at OMR 2 months ago" → LLM extracts source hint → matches "Hoarding - OMR Junction" activity with 0.87 confidence → if >0.8 AND differs from current attribution → reconciliation item created → ops decides
+3. **Unmatched walk-in:** geo-suggestions surfaced (nearby active hoardings/BTLs) → ops picks source or assigns `walk_in_unknown` → system creates manual raw_inbox row → cluster + attribution proceed normally
+4. **Salesforce import:** Day 1 — leads.csv with field mapping; Day 2 — contacts + opportunities + calls; Day 3 — comments + extraction queue review; bulk-resolve pattern-resolvable items
+
+#### Build phases (per spec):
+| Phase | Capabilities | Effort |
+|---|---|---|
+| V0 | Unified queue + 3 item types (disputed_cp_credit, manual_call_no_tracking, unmatched_walk_in) + manual resolution with downstream action | 5 days |
+| V1 | All 10 item types, SLA tracking, bulk actions, Salesforce import (leads + opportunities) | 5 days |
+| V1.5 | SF import (calls + comments + contacts), AI comment extraction, audit dashboard | 2 days |
+| V2 | Auto-resolve via rules ("auto-override CP credit when block reason matches X and amount < Y"), pattern detection | OUT OF SLOT |
+
+#### Acceptance criteria (from spec — do not deviate):
+- Disputed CP credit raised by Spec 04 appears in queue within 30s
+- Ops resolution 'override' triggers Spec 04 + Spec 08 downstream; CP accrual created within 1 minute
+- Manual call with no tracking lands in queue; ops can accept/reject with audit trail
+- Unmatched walk-in surfaces with geo-suggestions; resolution creates raw_inbox row backfilled
+- Salesforce CSV upload of 50K rows completes in <10 minutes; row-level errors shown
+- Comment extraction identifies source mentions with confidence; queue item created for >0.8 confidence mismatches with current attribution
+- Bulk resolution of 50 items completes atomically with summary report
+- SLA breach raises severity automatically and notifies
+- Audit trail captures every action; resolution is immutable (only re-resolution possible, never deletion)
+- Queue stats: depth by type, SLA compliance %, ageing histogram
 
 ---
 
@@ -617,4 +730,4 @@ Any implementation decision that deviates from the spec documents must be logged
 
 ---
 
-*Last updated: v2 draft — Specs 01–09 locked. Specs 10–11 pending upload.*
+*Last updated: v2 draft — ALL 11 specs locked (01–11). Plan is complete. Ready for execution.*
