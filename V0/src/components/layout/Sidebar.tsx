@@ -21,6 +21,9 @@ import {
   ChevronRight,
   Link2,
   LogOut,
+  GitBranch,
+  Activity,
+  Fingerprint,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
@@ -40,6 +43,8 @@ const NAV: NavItem[] = [
     children: [
       { label: 'All Leads', href: '/leads', icon: Users },
       { label: 'Add Leads', href: '/leads/entry', icon: PlusCircle },
+      { label: 'Raw Inbox', href: '/leads/inbox', icon: Inbox },
+      { label: 'Identity Clusters', href: '/leads/clusters', icon: Fingerprint },
     ],
   },
   {
@@ -56,6 +61,8 @@ const NAV: NavItem[] = [
     children: [
       { label: 'Manage Connectors', href: '/admin/connectors', icon: Plug },
       { label: 'Marketing Sources', href: '/admin/sources', icon: Tag },
+      { label: 'Source Taxonomy', href: '/admin/taxonomy', icon: GitBranch },
+      { label: 'BTL Activities', href: '/admin/activities', icon: Activity },
     ],
   },
   {
