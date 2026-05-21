@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Touchpoint, AttributionConfig } from './types.js';
 import { computeFirstTouchAttribution } from './engine.js';
+import { computeLastTouchDecision, computeTimeDecayDecision } from './comparison-models.js';
 
 const DEFAULT_CONFIG: AttributionConfig = {
   conversion_window_days: 60,
@@ -185,6 +186,112 @@ export async function runAttributionForConversionEvent(
       dealValuePaise: args.dealValuePaise ?? 0,
       touchpointCount: touchpoints.length,
     });
+  }
+
+  // 10. Compute and store comparison model results (last_touch_v1, time_decay_v1)
+  //     Re-use the same in-window touchpoints the first-touch engine already computed.
+  //     We re-derive them here for clarity (filter + sort) using the same config.
+  const windowMs = config.conversion_window_days * 24 * 60 * 60 * 1000;
+  const conversionMs = new Date(args.conversionOccurredAt).getTime();
+  const inWindowTouchpoints = touchpoints
+    .filter((tp) => {
+      const tpMs = new Date(tp.source_received_at).getTime();
+      return tpMs >= conversionMs - windowMs && tpMs <= conversionMs;
+    })
+    .sort((a, b) => a.source_received_at.localeCompare(b.source_received_at));
+
+  const comparisonModels = [
+    {
+      modelCode: 'last_touch_v1' as const,
+      displayName: 'Last Touch',
+      description: 'Credits the last touchpoint within the conversion window.',
+      computeDecision: () =>
+        computeLastTouchDecision(inWindowTouchpoints, args.conversionOccurredAt, config.conversion_window_days),
+    },
+    {
+      modelCode: 'time_decay_v1' as const,
+      displayName: 'Time Decay',
+      description: 'Credits the touchpoint with highest time-decay weight (lambda=0.1).',
+      computeDecision: () =>
+        computeTimeDecayDecision(inWindowTouchpoints, args.conversionOccurredAt, config.conversion_window_days),
+    },
+  ] as const;
+
+  for (const cm of comparisonModels) {
+    // Get or create comparison model row
+    const { data: cmModelRow } = await supabase
+      .schema('mih')
+      .from('attribution_models')
+      .select('id')
+      .eq('org_id', args.orgId)
+      .eq('model_code', cm.modelCode)
+      .eq('is_comparison', true)
+      .single();
+
+    let cmModelId: string;
+    if (cmModelRow) {
+      cmModelId = (cmModelRow as Record<string, string>).id;
+    } else {
+      const { data: cmCreated } = await supabase
+        .schema('mih')
+        .from('attribution_models')
+        .insert({
+          org_id: args.orgId,
+          model_code: cm.modelCode,
+          display_name: cm.displayName,
+          description: cm.description,
+          is_operational: false,
+          is_comparison: true,
+        })
+        .select('id')
+        .single();
+      cmModelId = (cmCreated as Record<string, string>).id;
+    }
+
+    const cmDecision = cm.computeDecision();
+
+    // Find existing non-superseded result for this comparison model
+    const { data: existingCmResult } = await supabase
+      .schema('mih')
+      .from('attribution_results')
+      .select('id')
+      .eq('org_id', args.orgId)
+      .eq('conversion_event_id', args.conversionEventId)
+      .eq('model_id', cmModelId)
+      .is('superseded_by_id', null)
+      .single();
+
+    // Insert new comparison result
+    const { data: newCmResult } = await supabase
+      .schema('mih')
+      .from('attribution_results')
+      .insert({
+        org_id: args.orgId,
+        conversion_event_id: args.conversionEventId,
+        model_id: cmModelId,
+        cluster_id: args.clusterId,
+        winning_source_id: cmDecision.winning_source_id,
+        winning_raw_lead_id: cmDecision.winning_raw_lead_id,
+        winning_touch_at: cmDecision.winning_touch_at,
+        weight: cmDecision.weight,
+        reason: cmDecision.reason,
+        rule_applied: cmDecision.rule_applied,
+        computation_inputs: cmDecision.computation_inputs,
+      })
+      .select('id')
+      .single();
+
+    const newCmResultId = (newCmResult as Record<string, string> | null)?.id;
+
+    // Supersede old comparison result
+    if (existingCmResult && newCmResultId) {
+      await supabase
+        .schema('mih')
+        .from('attribution_results')
+        .update({ superseded_by_id: newCmResultId })
+        .eq('id', (existingCmResult as Record<string, string>).id);
+    }
+    // No disputes for comparison models — disputes are operational-model only
   }
 }
 

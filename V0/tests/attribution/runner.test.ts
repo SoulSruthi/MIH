@@ -136,9 +136,11 @@ describe('runAttributionForConversionEvent', () => {
   it('creates a first_touch_v1 attribution_model when none exists', async () => {
     await runAttributionForConversionEvent(makeArgs(), stub as any);
     const models = stub.stores.get('attribution_models') ?? [];
-    expect(models.length).toBe(1);
-    expect(models[0].model_code).toBe('first_touch_v1');
-    expect(models[0].is_operational).toBe(true);
+    // Runner creates first_touch_v1 (operational) + last_touch_v1 + time_decay_v1 (comparison)
+    const operationalModel = models.find((m) => m.model_code === 'first_touch_v1');
+    expect(operationalModel).toBeDefined();
+    expect(operationalModel!.model_code).toBe('first_touch_v1');
+    expect(operationalModel!.is_operational).toBe(true);
   });
 
   it('reuses an existing operational model without creating a new one', async () => {
@@ -151,16 +153,20 @@ describe('runAttributionForConversionEvent', () => {
 
     await runAttributionForConversionEvent(makeArgs(), stub as any);
     const models = stub.stores.get('attribution_models') ?? [];
-    expect(models.length).toBe(1);
+    // first_touch_v1 reused; comparison models (last_touch_v1, time_decay_v1) are created
+    const firstTouchModels = models.filter((m) => m.model_code === 'first_touch_v1');
+    expect(firstTouchModels.length).toBe(1);
   });
 
   it('writes an attribution_result row', async () => {
     await runAttributionForConversionEvent(makeArgs(), stub as any);
     const results = stub.stores.get('attribution_results') ?? [];
-    expect(results.length).toBe(1);
-    expect(results[0].conversion_event_id).toBe('conv-1');
-    expect(results[0].cluster_id).toBe('cluster-1');
-    expect(results[0].org_id).toBe('org-1');
+    // Runner writes one result per model (operational + 2 comparison = 3 total)
+    const operationalResult = results.find((r) => r.conversion_event_id === 'conv-1' && r.cluster_id === 'cluster-1');
+    expect(operationalResult).toBeDefined();
+    expect(operationalResult!.conversion_event_id).toBe('conv-1');
+    expect(operationalResult!.cluster_id).toBe('cluster-1');
+    expect(operationalResult!.org_id).toBe('org-1');
   });
 
   it('result reason is no_touchpoints_in_window when cluster has no edges', async () => {
