@@ -5,8 +5,18 @@ import { attributionRollupFunction } from '@/inngest/functions/attribution-rollu
 import { anomalyDigestFunction } from '@/inngest/functions/anomaly-digest';
 import { attributionRecomputeFunction } from '@/inngest/functions/attribution-recompute';
 import { projectSourceAutoDisableFunction } from '@/inngest/functions/project-source-autodisable';
+import { cpCommissionCalculatorFunction } from '@/inngest/functions/cp-commission-calculator';
+import { referralCommissionCalculatorFunction } from '@/inngest/functions/referral-commission-calculator';
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [spendSyncFunction, attributionRollupFunction, anomalyDigestFunction, attributionRecomputeFunction, projectSourceAutoDisableFunction],
+  functions: [
+    spendSyncFunction,
+    attributionRollupFunction,
+    anomalyDigestFunction,
+    attributionRecomputeFunction,
+    projectSourceAutoDisableFunction,
+    cpCommissionCalculatorFunction,
+    referralCommissionCalculatorFunction,
+  ],
 });
