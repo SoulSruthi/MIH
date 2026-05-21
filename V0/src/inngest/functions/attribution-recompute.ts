@@ -21,8 +21,8 @@ export const attributionRecomputeFunction = inngest.createFunction(
   {
     id: 'attribution-recompute-on-cluster-merged',
     name: 'Recompute Attribution on Cluster Merge',
+    triggers: [{ event: 'identity/cluster.merged' }],
   },
-  { event: 'identity/cluster.merged' },
   async ({ event, logger }: { event: ClusterMergedEvent; logger: { info: (...args: unknown[]) => void; error: (...args: unknown[]) => void } }) => {
     const { cluster_id: clusterId, org_id: orgId } = event.data;
 

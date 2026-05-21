@@ -10,7 +10,7 @@
  * and include touchpoints from both the converting cluster and all
  * household-linked clusters.
  */
-import type { Touchpoint } from './types.js';
+import type { Touchpoint } from './types';
 
 export type HouseholdRuleResult = {
   winningTouchpoint: Touchpoint;

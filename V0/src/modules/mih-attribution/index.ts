@@ -9,12 +9,12 @@ export type {
   AttributionDecision,
   AttributionEngineInput,
   AttributionEngineResult,
-} from './types.js';
+} from './types';
 
-export { computeFirstTouchAttribution } from './engine.js';
-export { applyCpClaimBlock } from './cp-claim-block.js';
-export type { CpClaimBlockResult } from './cp-claim-block.js';
-export { applyHouseholdRule } from './household-rule.js';
-export type { HouseholdRuleResult } from './household-rule.js';
-export { runAttributionForConversionEvent } from './runner.js';
-export type { AttributionRunArgs } from './runner.js';
+export { computeFirstTouchAttribution } from './engine';
+export { applyCpClaimBlock } from './cp-claim-block';
+export type { CpClaimBlockResult } from './cp-claim-block';
+export { applyHouseholdRule } from './household-rule';
+export type { HouseholdRuleResult } from './household-rule';
+export { runAttributionForConversionEvent } from './runner';
+export type { AttributionRunArgs } from './runner';

@@ -15,9 +15,9 @@ import type {
   AttributionEngineResult,
   AttributionDecision,
   Touchpoint,
-} from './types.js';
-import { applyCpClaimBlock } from './cp-claim-block.js';
-import { applyHouseholdRule } from './household-rule.js';
+} from './types';
+import { applyCpClaimBlock } from './cp-claim-block';
+import { applyHouseholdRule } from './household-rule';
 
 // ---------------------------------------------------------------------------
 // Helpers

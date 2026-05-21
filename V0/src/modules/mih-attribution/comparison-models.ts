@@ -3,7 +3,7 @@
  *
  * Pure functions: no DB calls. All data is passed in.
  */
-import type { Touchpoint, AttributionDecision } from './types.js';
+import type { Touchpoint, AttributionDecision } from './types';
 
 // ---------------------------------------------------------------------------
 // Helpers

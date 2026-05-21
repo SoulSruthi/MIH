@@ -11,8 +11,8 @@ export const projectSourceAutoDisableFunction = inngest.createFunction(
   {
     id: 'project-source-auto-disable',
     name: 'Auto-disable Expired Project Sources',
+    triggers: [{ cron: '0 1 * * *' }],
   },
-  { cron: '0 1 * * *' }, // 1am IST daily (UTC+5:30 → 19:30 UTC previous day, but spec says 1am IST)
   async ({ logger }: { logger: { info: (...args: unknown[]) => void; error: (...args: unknown[]) => void } }) => {
     const supabase = getSupabaseAdmin();
 

@@ -6,7 +6,7 @@
  * For 'scheduled' and 'completed' events also writes a mih.conversion_events row.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CrmSiteVisitPayload, SiteVisitConsumeResult } from './types.js';
+import type { CrmSiteVisitPayload, SiteVisitConsumeResult } from './types';
 
 export type SiteVisitConsumerDeps = {
   supabaseAdmin: SupabaseClient;

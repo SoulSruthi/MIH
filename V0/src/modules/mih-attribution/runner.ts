@@ -6,9 +6,9 @@
  * writes disputes, and updates project_source_history.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Touchpoint, AttributionConfig } from './types.js';
-import { computeFirstTouchAttribution } from './engine.js';
-import { computeLastTouchDecision, computeTimeDecayDecision } from './comparison-models.js';
+import type { Touchpoint, AttributionConfig } from './types';
+import { computeFirstTouchAttribution } from './engine';
+import { computeLastTouchDecision, computeTimeDecayDecision } from './comparison-models';
 
 const DEFAULT_CONFIG: AttributionConfig = {
   conversion_window_days: 60,

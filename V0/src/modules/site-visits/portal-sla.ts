@@ -4,7 +4,7 @@
  * Pure function — no DB access. Computes pacing % and breach flag for each
  * portal source SLA target given actual site-visit counts and a reference date.
  */
-import type { PortalSlaTarget, PortalSlaStatus } from './types.js';
+import type { PortalSlaTarget, PortalSlaStatus } from './types';
 
 /**
  * Returns the number of days in the month of the given date.

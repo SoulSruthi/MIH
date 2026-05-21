@@ -9,7 +9,7 @@ import type {
   ProjectLifecycleStage,
   StageTransitionEffect,
   LaunchAutoEnableCategory,
-} from './types.js';
+} from './types';
 
 /**
  * Source categories that are automatically enabled on the pre_launch → launch transition.

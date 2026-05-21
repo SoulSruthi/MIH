@@ -6,7 +6,7 @@
  *
  * Input touchpoints must be pre-sorted by source_received_at ASC.
  */
-import type { Touchpoint } from './types.js';
+import type { Touchpoint } from './types';
 
 export type CpClaimBlockResult = {
   blockedTouchpoint: Touchpoint | null;
