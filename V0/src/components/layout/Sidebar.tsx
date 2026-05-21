@@ -24,6 +24,9 @@ import {
   GitBranch,
   Activity,
   Fingerprint,
+  Target,
+  Building2,
+  MapPin,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
@@ -66,9 +69,25 @@ const NAV: NavItem[] = [
     ],
   },
   {
+    label: 'Attribution',
+    icon: Target,
+    children: [
+      { label: 'Attribution', href: '/attribution', icon: Target },
+      { label: 'Disputed Queue', href: '/attribution/disputed', icon: AlertTriangle },
+    ],
+  },
+  {
+    label: 'Projects',
+    icon: Building2,
+    children: [
+      { label: 'All Projects', href: '/projects', icon: Building2 },
+    ],
+  },
+  {
     label: 'Operations',
     icon: Settings2,
     children: [
+      { label: 'Site Visits', href: '/site-visits', icon: MapPin },
       { label: 'Spend Tracking', href: '/admin/spend', icon: CreditCard },
       { label: 'Dedup Rules', href: '/admin/dedup-rules', icon: Settings2 },
       { label: 'Dead Letter Queue', href: '/sources/dlq', icon: Inbox },
