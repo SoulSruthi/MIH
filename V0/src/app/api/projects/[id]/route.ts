@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { computeStageTransitionEffects } from '@/modules/projects/stage-automation';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,7 +91,7 @@ export async function PATCH(
   const { data: existing, error: fetchError } = await supabase
     .schema('mih')
     .from('projects')
-    .select('id, lifecycle_stage')
+    .select('id, lifecycle_stage, launch_date')
     .eq('org_id', orgId)
     .eq('id', id)
     .single();
@@ -120,9 +121,54 @@ export async function PATCH(
       .insert({
         org_id: orgId,
         project_id: id,
-        lifecycle_stage: updates.lifecycle_stage,
-        changed_at: new Date().toISOString(),
+        from_stage: existing.lifecycle_stage,
+        to_stage: updates.lifecycle_stage,
+        occurred_at: new Date().toISOString(),
       });
+
+    // Apply stage-based source allowlist automation
+    const launchDate = project.launch_date ? new Date(project.launch_date as string) : null;
+    const effects = computeStageTransitionEffects(
+      existing.lifecycle_stage as Parameters<typeof computeStageTransitionEffects>[0],
+      updates.lifecycle_stage as Parameters<typeof computeStageTransitionEffects>[1],
+      launchDate,
+    );
+
+    if (effects.sourcesToEnable.length > 0) {
+      // Resolve category names to actual source UUIDs from mih.sources
+      const categories = effects.sourcesToEnable.map((e) => e.source_id);
+      const { data: matchedSources } = await supabase
+        .schema('mih')
+        .from('sources')
+        .select('id, code')
+        .eq('org_id', orgId)
+        .in('code', categories)
+        .neq('lifecycle_state', 'killed');
+
+      const matched = (matchedSources ?? []) as Array<{ id: string; code: string }>;
+      const autoDisableByCategory = new Map(
+        effects.sourcesToEnable.map((e) => [e.source_id, e.auto_disable_at]),
+      );
+
+      for (const src of matched) {
+        const autoDisableAt = autoDisableByCategory.get(src.code) ?? null;
+        await supabase
+          .schema('mih')
+          .from('project_source_allowlist')
+          .upsert(
+            {
+              org_id: orgId,
+              project_id: id,
+              source_id: src.id,
+              applicable_stages: ['launch', 'mid_construction'],
+              auto_disable_at: autoDisableAt?.toISOString() ?? null,
+              enabled: true,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'org_id,project_id,source_id' },
+          );
+      }
+    }
   }
 
   return NextResponse.json({ project });
