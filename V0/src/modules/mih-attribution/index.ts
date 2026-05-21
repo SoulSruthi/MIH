@@ -16,3 +16,5 @@ export { applyCpClaimBlock } from './cp-claim-block.js';
 export type { CpClaimBlockResult } from './cp-claim-block.js';
 export { applyHouseholdRule } from './household-rule.js';
 export type { HouseholdRuleResult } from './household-rule.js';
+export { runAttributionForConversionEvent } from './runner.js';
+export type { AttributionRunArgs } from './runner.js';

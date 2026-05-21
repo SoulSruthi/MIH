@@ -14,6 +14,14 @@ export type SiteVisitConsumerDeps = {
   now?: () => Date;
   emitSiteVisitRecorded?: (siteVisitEventId: string, orgId: string) => Promise<void>;
   emitUnmatchedWalkIn?: (siteVisitEventId: string, orgId: string) => Promise<void>;
+  /** Called after a conversion_event is written to trigger attribution engine */
+  triggerAttribution?: (args: {
+    conversionEventId: string;
+    clusterId: string;
+    conversionOccurredAt: string;
+    projectId: string | null;
+    eventCode: string;
+  }) => Promise<void>;
 };
 
 const CONVERSION_EVENT_CODES: Partial<Record<CrmSiteVisitPayload['event_kind'], string>> = {
@@ -120,6 +128,17 @@ export async function consumeSiteVisitEvent(
       .single();
 
     conversionEventId = (convRow as { id: string } | null)?.id ?? null;
+
+    // Trigger attribution engine when site visit is completed
+    if (eventCode === 'site_visit_completed' && conversionEventId && payload.cluster_id) {
+      await deps.triggerAttribution?.({
+        conversionEventId,
+        clusterId: payload.cluster_id,
+        conversionOccurredAt: payload.completed_at ?? payload.scheduled_at ?? now.toISOString(),
+        projectId: payload.project_id ?? null,
+        eventCode,
+      });
+    }
   }
 
   await deps.emitSiteVisitRecorded?.(siteVisitEventId, orgId);
