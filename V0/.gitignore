@@ -44,6 +44,9 @@ yarn-error.log*
 # TypeScript
 *.js.map
 
+# Supabase CLI local state
+supabase/.temp/
+
 # Local-only
 VIBE_CODE_OS_V2/
 
