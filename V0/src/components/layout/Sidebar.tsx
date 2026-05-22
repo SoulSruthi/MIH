@@ -27,6 +27,9 @@ import {
   Target,
   Building2,
   MapPin,
+  Wallet,
+  Handshake,
+  Share2,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
@@ -81,6 +84,15 @@ const NAV: NavItem[] = [
     icon: Building2,
     children: [
       { label: 'All Projects', href: '/projects', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Finance',
+    icon: Wallet,
+    children: [
+      { label: 'Budgets', href: '/budgets', icon: Wallet },
+      { label: 'Channel Partners', href: '/channel-partners', icon: Handshake },
+      { label: 'Referrals', href: '/referrals', icon: Share2 },
     ],
   },
   {
