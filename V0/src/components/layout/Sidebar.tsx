@@ -27,6 +27,13 @@ import {
   Target,
   Building2,
   MapPin,
+  DollarSign,
+  Handshake,
+  Gift,
+  PieChart,
+  ClipboardList,
+  Wallet,
+  BellRing,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
@@ -81,6 +88,37 @@ const NAV: NavItem[] = [
     icon: Building2,
     children: [
       { label: 'All Projects', href: '/projects', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Budget',
+    icon: DollarSign,
+    children: [
+      { label: 'Budget Plans', href: '/budget', icon: DollarSign },
+    ],
+  },
+  {
+    label: 'Partners',
+    icon: Handshake,
+    children: [
+      { label: 'Channel Partners', href: '/channel-partners', icon: Handshake },
+      { label: 'Referral Program', href: '/referrals', icon: Gift },
+    ],
+  },
+  {
+    label: 'ROI',
+    icon: PieChart,
+    children: [
+      { label: 'ROI Dashboard', href: '/roi', icon: PieChart },
+      { label: 'Spend Management', href: '/roi/spend', icon: Wallet },
+      { label: 'Variance Alerts', href: '/roi/alerts', icon: BellRing },
+    ],
+  },
+  {
+    label: 'Reconciliation',
+    icon: ClipboardList,
+    children: [
+      { label: 'Queue', href: '/reconciliation', icon: ClipboardList },
     ],
   },
   {
