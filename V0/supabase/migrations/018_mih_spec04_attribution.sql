@@ -76,7 +76,7 @@ CREATE TABLE mih.conversion_events (
   reversed_reason     text,
   source_metadata     jsonb NOT NULL DEFAULT '{}',
   created_at          timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, crm_event_id) WHERE crm_event_id IS NOT NULL
+  UNIQUE (org_id, crm_event_id)
 );
 
 CREATE INDEX mih_conversion_events_cluster_idx ON mih.conversion_events(org_id, cluster_id, event_code);
@@ -109,8 +109,7 @@ CREATE TABLE mih.attribution_results (
   rule_applied            text NOT NULL,  -- e.g. 'first_touch_v1', 'household_first_member_rule'
   computation_inputs      jsonb NOT NULL DEFAULT '{}',  -- snapshot for explainability
   superseded_by_id        uuid REFERENCES mih.attribution_results(id),
-  created_at              timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, conversion_event_id, model_id) WHERE superseded_by_id IS NULL
+  created_at              timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX mih_attribution_results_cluster_idx ON mih.attribution_results(org_id, cluster_id);
@@ -125,6 +124,11 @@ CREATE POLICY mih_attribution_results_tenant_isolation ON mih.attribution_result
 CREATE POLICY mih_attribution_results_service_write ON mih.attribution_results
   FOR ALL TO service_role
   USING (true) WITH CHECK (true);
+
+-- Partial unique index: only one active (non-superseded) result per (org, event, model)
+CREATE UNIQUE INDEX mih_attribution_results_active_unique
+  ON mih.attribution_results(org_id, conversion_event_id, model_id)
+  WHERE superseded_by_id IS NULL;
 
 -- -----------------------------------------------------------------
 -- mih.disputed_attributions — dispute queue (feeds Spec 11)

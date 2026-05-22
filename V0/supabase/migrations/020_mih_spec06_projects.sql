@@ -32,12 +32,14 @@ CREATE TABLE mih.projects (
   launch_date                 date,
   crm_synced_at               timestamptz,
   created_at                  timestamptz NOT NULL DEFAULT now(),
-  updated_at                  timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, crm_project_id) WHERE crm_project_id IS NOT NULL
+  updated_at                  timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX mih_projects_org_stage_idx ON mih.projects(org_id, lifecycle_stage);
 CREATE INDEX mih_projects_crm_id_idx ON mih.projects(org_id, crm_project_id) WHERE crm_project_id IS NOT NULL;
+CREATE UNIQUE INDEX mih_projects_crm_id_unique
+  ON mih.projects(org_id, crm_project_id)
+  WHERE crm_project_id IS NOT NULL;
 
 ALTER TABLE mih.projects ENABLE ROW LEVEL SECURITY;
 

@@ -17,11 +17,13 @@ CREATE TABLE mih.channel_partners (
   contact_phone       text,
   is_active           boolean NOT NULL DEFAULT true,
   created_at          timestamptz NOT NULL DEFAULT now(),
-  updated_at          timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, code) WHERE code IS NOT NULL
+  updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX mih_channel_partners_org_idx ON mih.channel_partners(org_id, is_active);
+CREATE UNIQUE INDEX mih_channel_partners_code_unique
+  ON mih.channel_partners(org_id, code)
+  WHERE code IS NOT NULL;
 
 ALTER TABLE mih.channel_partners ENABLE ROW LEVEL SECURITY;
 

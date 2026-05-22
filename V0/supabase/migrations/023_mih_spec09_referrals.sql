@@ -17,12 +17,14 @@ CREATE TABLE mih.referrers (
   is_active             boolean NOT NULL DEFAULT true,
   last_referral_at      timestamptz,  -- updated on each referral; drives dormancy check
   created_at            timestamptz NOT NULL DEFAULT now(),
-  updated_at            timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, customer_cluster_id) WHERE customer_cluster_id IS NOT NULL
+  updated_at            timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX mih_referrers_org_idx ON mih.referrers(org_id, is_active);
 CREATE INDEX mih_referrers_dormancy_idx ON mih.referrers(org_id, last_referral_at) WHERE is_active = true;
+CREATE UNIQUE INDEX mih_referrers_cluster_unique
+  ON mih.referrers(org_id, customer_cluster_id)
+  WHERE customer_cluster_id IS NOT NULL;
 
 ALTER TABLE mih.referrers ENABLE ROW LEVEL SECURITY;
 
@@ -50,12 +52,14 @@ CREATE TABLE mih.referral_events (
   converted_at          timestamptz,
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, referrer_id, referee_cluster_id),
-  UNIQUE (org_id, crm_event_id) WHERE crm_event_id IS NOT NULL
+  UNIQUE (org_id, referrer_id, referee_cluster_id)
 );
 
 CREATE INDEX mih_referral_events_referrer_idx ON mih.referral_events(org_id, referrer_id, status);
 CREATE INDEX mih_referral_events_referee_idx ON mih.referral_events(org_id, referee_cluster_id);
+CREATE UNIQUE INDEX mih_referral_events_crm_event_id_unique
+  ON mih.referral_events(org_id, crm_event_id)
+  WHERE crm_event_id IS NOT NULL;
 
 ALTER TABLE mih.referral_events ENABLE ROW LEVEL SECURITY;
 
