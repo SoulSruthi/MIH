@@ -7,6 +7,22 @@
 **Branch:** `v2.4`
 **DB migrations:** 021–025 applied
 
+#### Demo Data (Prestige Realty — org `00000000-0000-0000-0000-000000000001`)
+- **12 identity clusters** + **12 golden records** — mapped to all raw inbox leads
+- **3 projects**: Prestige Heights (launch), Prestige Gardens (pre_launch), Prestige Skyline (mid_construction)
+- **5 channel partners** with commission accruals (earned/accrued/paid states)
+- **3 referrers** with consent state, referral codes, submission history
+- **8 conversion events** (5× deal_won, 1× site_visit_completed, 1× qualified, 1× site_visit_scheduled)
+- **6 attribution results** — first-touch model; one CP-claim-blocked case (Arun Selvam: Meta won over CP)
+- **6 site visit events** (2× completed, 1× walk-in, 1× scheduled, 1× no_show, 1× fast-track)
+- **12 spend entries** across Meta, Google, 99acres, MagicBricks, Housing.com, OOH, CP — April + May 2026
+- **3 attribution models**: first_touch_v1 (operational), last_touch_v1, time_decay_v1
+- **5 metric snapshots** — per source × project for May 2026 + overall rollup
+- **3 variance alerts**: booking_shortfall (warning), cpb_spike (critical), spend_overrun (warning)
+- **3 reconciliation items**: disputed_cp_credit (open/high), unmatched_walk_in (in_review), manual_call_no_tracking (open/low)
+- **5 budget allocations** + **4 budget actuals** — Q1 FY2026 plan for Prestige Heights
+- **3 referral submissions** (2× accepted, 1× dedup_existing)
+
 ### What's in v2.4
 
 #### Spec 07 — Budget Planning Engine (Phase 3)
