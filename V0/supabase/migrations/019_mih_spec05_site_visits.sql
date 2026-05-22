@@ -57,11 +57,13 @@ CREATE TABLE mih.portal_site_visit_targets (
   actual_count        int NOT NULL DEFAULT 0,
   last_computed_at    timestamptz,
   created_at          timestamptz NOT NULL DEFAULT now(),
-  updated_at          timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (org_id, source_id, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid), target_month)
+  updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX mih_portal_sv_targets_month_idx ON mih.portal_site_visit_targets(org_id, target_month DESC);
+-- Functional unique index handles NULL project_id by substituting a sentinel UUID
+CREATE UNIQUE INDEX mih_portal_sv_targets_unique
+  ON mih.portal_site_visit_targets(org_id, source_id, COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid), target_month);
 
 ALTER TABLE mih.portal_site_visit_targets ENABLE ROW LEVEL SECURITY;
 
