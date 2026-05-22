@@ -13,8 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type EventKind =
   | 'completed'
@@ -78,6 +77,7 @@ const DEFAULT_PORTAL_FORM: PortalTargetForm = {
 };
 
 export function SiteVisitDashboard() {
+  const orgId = useOrgId();
   const [visits, setVisits] = useState<SiteVisit[]>([]);
   const [portalTargets, setPortalTargets] = useState<PortalTarget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +92,8 @@ export function SiteVisitDashboard() {
     setError(null);
     try {
       const [visitsRes, targetsRes] = await Promise.all([
-        fetch('/api/site-visits?limit=50', { headers: { 'x-org-id': ORG_ID } }),
-        fetch('/api/site-visits/portal-targets', { headers: { 'x-org-id': ORG_ID } }),
+        fetch('/api/site-visits?limit=50', { headers: { 'x-org-id': orgId } }),
+        fetch('/api/site-visits/portal-targets', { headers: { 'x-org-id': orgId } }),
       ]);
 
       if (visitsRes.ok) {
@@ -127,7 +127,7 @@ export function SiteVisitDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-org-id': ORG_ID,
+          'x-org-id': orgId,
         },
         body: JSON.stringify({
           source_id: portalForm.source_id.trim(),

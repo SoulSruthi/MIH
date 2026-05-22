@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type RecItem = {
   id: string;
@@ -46,6 +45,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function ReconciliationItemDetail({ id }: { id: string }) {
+  const orgId = useOrgId();
   const [item, setItem] = useState<RecItem | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +59,8 @@ export function ReconciliationItemDetail({ id }: { id: string }) {
     setLoading(true);
     try {
       const [itemRes, auditRes] = await Promise.all([
-        fetch(`/api/reconciliation/${id}`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/reconciliation/${id}/audit`, { headers: { 'x-org-id': ORG_ID } }),
+        fetch(`/api/reconciliation/${id}`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/reconciliation/${id}/audit`, { headers: { 'x-org-id': orgId } }),
       ]);
       if (itemRes.ok) setItem((await itemRes.json()).item);
       if (auditRes.ok) setAudit((await auditRes.json()).audit ?? []);
@@ -77,7 +77,7 @@ export function ReconciliationItemDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/reconciliation/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ action: 'resolve', resolution, resolved_by: 'user' }),
       });
       if (res.ok) { setResolution(''); await fetchAll(); }
@@ -92,7 +92,7 @@ export function ReconciliationItemDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/reconciliation/${id}/audit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ note, actor_id: 'user' }),
       });
       if (res.ok) { setNote(''); await fetchAll(); }
@@ -106,7 +106,7 @@ export function ReconciliationItemDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/reconciliation/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ state: newState }),
       });
       if (res.ok) await fetchAll();

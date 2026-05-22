@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { DedupRulesConfig } from '@/app/api/admin/dedup-rules/route';
 import type { DedupPreview } from '@/app/api/admin/dedup-rules/preview/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

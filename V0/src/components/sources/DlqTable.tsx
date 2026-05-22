@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { DlqEntry } from '@/app/api/sources/dlq/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 type DlqResponse = {
   entries: DlqEntry[];

@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Referrer = {
   id: string;
@@ -44,6 +43,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function ReferralsDashboard() {
+  const orgId = useOrgId();
   const [referrers, setReferrers] = useState<Referrer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function ReferralsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/referrals', { headers: { 'x-org-id': ORG_ID } });
+      const res = await fetch('/api/referrals', { headers: { 'x-org-id': orgId } });
       if (!res.ok) { setError(`Failed to load referrers (HTTP ${res.status}).`); return; }
       const d = (await res.json()) as { referrers: Referrer[] };
       setReferrers(d.referrers ?? []);
@@ -84,7 +84,7 @@ export function ReferralsDashboard() {
 
       const res = await fetch('/api/referrals', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

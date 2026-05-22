@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type LifecycleStage =
   | 'pre_launch'
@@ -73,6 +72,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function ProjectsDashboard() {
+  const orgId = useOrgId();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export function ProjectsDashboard() {
     setError(null);
     try {
       const res = await fetch('/api/projects', {
-        headers: { 'x-org-id': ORG_ID },
+        headers: { 'x-org-id': orgId },
       });
       if (!res.ok) {
         setError(`Failed to load projects (HTTP ${res.status}).`);
@@ -123,7 +123,7 @@ export function ProjectsDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-org-id': ORG_ID,
+          'x-org-id': orgId,
         },
         body: JSON.stringify(body),
       });

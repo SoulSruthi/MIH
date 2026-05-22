@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Budget = {
   id: string;
@@ -37,6 +36,7 @@ type Variance = {
 };
 
 export function BudgetDetail({ id }: { id: string }) {
+  const orgId = useOrgId();
   const [budget, setBudget] = useState<Budget | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [variance, setVariance] = useState<Variance[]>([]);
@@ -48,9 +48,9 @@ export function BudgetDetail({ id }: { id: string }) {
     setLoading(true);
     try {
       const [budgetRes, periodsRes, varianceRes] = await Promise.all([
-        fetch(`/api/budget/${id}`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/budget/${id}/periods`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/budget/${id}/variance`, { headers: { 'x-org-id': ORG_ID } }),
+        fetch(`/api/budget/${id}`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/budget/${id}/periods`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/budget/${id}/variance`, { headers: { 'x-org-id': orgId } }),
       ]);
 
       if (budgetRes.ok) setBudget((await budgetRes.json()).budget);
@@ -70,7 +70,7 @@ export function BudgetDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/budget/${id}/activate`, {
         method: 'POST',
-        headers: { 'x-org-id': ORG_ID },
+        headers: { 'x-org-id': orgId },
       });
       if (res.ok) await fetchAll();
     } finally {

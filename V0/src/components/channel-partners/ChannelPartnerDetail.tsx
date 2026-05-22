@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type CP = {
   id: string;
@@ -49,6 +48,7 @@ const STATE_CLASSES: Record<string, string> = {
 };
 
 export function ChannelPartnerDetail({ id }: { id: string }) {
+  const orgId = useOrgId();
   const [cp, setCp] = useState<CP | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -60,9 +60,9 @@ export function ChannelPartnerDetail({ id }: { id: string }) {
     setLoading(true);
     try {
       const [cpRes, commissionsRes, keysRes] = await Promise.all([
-        fetch(`/api/channel-partners/${id}`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/channel-partners/${id}/commissions`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/channel-partners/${id}/api-keys`, { headers: { 'x-org-id': ORG_ID } }),
+        fetch(`/api/channel-partners/${id}`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/channel-partners/${id}/commissions`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/channel-partners/${id}/api-keys`, { headers: { 'x-org-id': orgId } }),
       ]);
 
       if (cpRes.ok) setCp((await cpRes.json()).channel_partner);
@@ -81,7 +81,7 @@ export function ChannelPartnerDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/channel-partners/${id}/api-keys`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ scopes: ['leads:write'] }),
       });
       if (res.ok) {

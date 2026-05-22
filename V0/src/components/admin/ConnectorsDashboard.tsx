@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ConnectorWithStatus } from '@/app/api/admin/connectors/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 type ToastState = { type: 'success' | 'error'; message: string } | null;
 

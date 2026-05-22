@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { SourceCategory, SourceCategoryKind } from '@/app/api/admin/sources/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 type SourcesResponse = {
   categories: SourceCategory[];

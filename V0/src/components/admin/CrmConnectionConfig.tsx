@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useId } from 'react';
 import { CheckCircle2, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useOrgId } from '@/lib/use-org-id';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

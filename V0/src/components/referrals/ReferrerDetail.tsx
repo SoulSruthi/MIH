@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Referrer = {
   id: string;
@@ -34,6 +33,7 @@ type Commission = {
 };
 
 export function ReferrerDetail({ id }: { id: string }) {
+  const orgId = useOrgId();
   const [referrer, setReferrer] = useState<Referrer | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,8 +43,8 @@ export function ReferrerDetail({ id }: { id: string }) {
     setLoading(true);
     try {
       const [refRes, commRes] = await Promise.all([
-        fetch(`/api/referrals/${id}`, { headers: { 'x-org-id': ORG_ID } }),
-        fetch(`/api/referrals/${id}/commissions`, { headers: { 'x-org-id': ORG_ID } }),
+        fetch(`/api/referrals/${id}`, { headers: { 'x-org-id': orgId } }),
+        fetch(`/api/referrals/${id}/commissions`, { headers: { 'x-org-id': orgId } }),
       ]);
       if (refRes.ok) setReferrer((await refRes.json()).referrer);
       if (commRes.ok) setCommissions((await commRes.json()).commissions ?? []);
@@ -60,7 +60,7 @@ export function ReferrerDetail({ id }: { id: string }) {
     try {
       const res = await fetch(`/api/referrals/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ consent_state: consentState }),
       });
       if (res.ok) await fetchAll();

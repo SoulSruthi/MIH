@@ -6,8 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Budget = {
   id: string;
@@ -46,6 +45,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function BudgetDashboard() {
+  const orgId = useOrgId();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function BudgetDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/budget', { headers: { 'x-org-id': ORG_ID } });
+      const res = await fetch('/api/budget', { headers: { 'x-org-id': orgId } });
       if (!res.ok) { setError(`Failed to load budgets (HTTP ${res.status}).`); return; }
       const d = (await res.json()) as { budgets: Budget[] };
       setBudgets(d.budgets ?? []);
@@ -84,7 +84,7 @@ export function BudgetDashboard() {
 
       const res = await fetch('/api/budget', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

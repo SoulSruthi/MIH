@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type SpendEntry = {
   id: string;
@@ -37,6 +36,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function SpendManagement() {
+  const orgId = useOrgId();
   const [entries, setEntries] = useState<SpendEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -47,7 +47,7 @@ export function SpendManagement() {
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/spend/entries', { headers: { 'x-org-id': ORG_ID } });
+      const res = await fetch('/api/spend/entries', { headers: { 'x-org-id': orgId } });
       if (res.ok) {
         const d = (await res.json()) as { entries: SpendEntry[] };
         setEntries(d.entries ?? []);
@@ -75,7 +75,7 @@ export function SpendManagement() {
 
       const res = await fetch('/api/spend/entries', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify(body),
       });
       if (!res.ok) {

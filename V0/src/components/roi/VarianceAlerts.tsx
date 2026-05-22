@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Alert = {
   id: string;
@@ -31,6 +30,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function VarianceAlerts() {
+  const orgId = useOrgId();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [showResolved, setShowResolved] = useState(false);
@@ -40,7 +40,7 @@ export function VarianceAlerts() {
     setLoading(true);
     try {
       const url = showResolved ? '/api/variance/alerts?resolved=true' : '/api/variance/alerts?resolved=false';
-      const res = await fetch(url, { headers: { 'x-org-id': ORG_ID } });
+      const res = await fetch(url, { headers: { 'x-org-id': orgId } });
       if (res.ok) {
         const d = (await res.json()) as { alerts: Alert[] };
         setAlerts(d.alerts ?? []);
@@ -57,7 +57,7 @@ export function VarianceAlerts() {
     try {
       const res = await fetch(`/api/variance/alerts/${id}/resolve`, {
         method: 'POST',
-        headers: { 'x-org-id': ORG_ID },
+        headers: { 'x-org-id': orgId },
       });
       if (res.ok) await fetchAlerts();
     } finally {

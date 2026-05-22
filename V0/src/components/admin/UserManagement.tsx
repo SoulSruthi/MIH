@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { OrgMember, OrgRole } from '@/app/api/admin/users/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type FunnelEntry = {
   source_id: string;
@@ -19,6 +18,7 @@ type FunnelEntry = {
 };
 
 export function RoiDashboard() {
+  const orgId = useOrgId();
   const [funnel, setFunnel] = useState<FunnelEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalSpend, setTotalSpend] = useState(0);
@@ -27,8 +27,8 @@ export function RoiDashboard() {
     setLoading(true);
     try {
       const [funnelRes, spendRes] = await Promise.all([
-        fetch('/api/metrics/funnel?group_by=source', { headers: { 'x-org-id': ORG_ID } }),
-        fetch('/api/spend/entries', { headers: { 'x-org-id': ORG_ID } }),
+        fetch('/api/metrics/funnel?group_by=source', { headers: { 'x-org-id': orgId } }),
+        fetch('/api/spend/entries', { headers: { 'x-org-id': orgId } }),
       ]);
       if (funnelRes.ok) {
         const d = (await funnelRes.json()) as { funnel: FunnelEntry[] };

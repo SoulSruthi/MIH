@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type ReconciliationItem = {
   id: string;
@@ -62,6 +61,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function ReconciliationQueue() {
+  const orgId = useOrgId();
   const [items, setItems] = useState<ReconciliationItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export function ReconciliationQueue() {
     setLoading(true);
     try {
       const res = await fetch(`/api/reconciliation?state=${stateFilter}&limit=50`, {
-        headers: { 'x-org-id': ORG_ID },
+        headers: { 'x-org-id': orgId },
       });
       if (res.ok) {
         const d = (await res.json()) as { items: ReconciliationItem[]; total: number };
@@ -105,7 +105,7 @@ export function ReconciliationQueue() {
 
       const res = await fetch('/api/reconciliation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -128,7 +128,7 @@ export function ReconciliationQueue() {
     try {
       await fetch('/api/reconciliation/bulk-resolve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify({ ids: Array.from(selected), resolution: 'Bulk resolved' }),
       });
       setSelected(new Set());

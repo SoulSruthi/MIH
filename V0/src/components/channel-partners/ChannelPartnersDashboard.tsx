@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type ChannelPartner = {
   id: string;
@@ -41,6 +40,7 @@ const DEFAULT_FORM: CreateFormState = {
 };
 
 export function ChannelPartnersDashboard() {
+  const orgId = useOrgId();
   const [cps, setCps] = useState<ChannelPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function ChannelPartnersDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/channel-partners', { headers: { 'x-org-id': ORG_ID } });
+      const res = await fetch('/api/channel-partners', { headers: { 'x-org-id': orgId } });
       if (!res.ok) { setError(`Failed to load channel partners (HTTP ${res.status}).`); return; }
       const d = (await res.json()) as { channel_partners: ChannelPartner[] };
       setCps(d.channel_partners ?? []);
@@ -84,7 +84,7 @@ export function ChannelPartnersDashboard() {
 
       const res = await fetch('/api/channel-partners', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': ORG_ID },
+        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
         body: JSON.stringify(body),
       });
       if (!res.ok) {
