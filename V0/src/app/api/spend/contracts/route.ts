@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { amortizeContract } from '@/modules/roi-reporting/contract-amortizer';
+import type { SpendContract } from '@/modules/roi-reporting/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,5 +55,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ contract: data }, { status: 201 });
+
+  let entries_created = 0;
+  try {
+    const result = await amortizeContract(data as SpendContract, supabase);
+    entries_created = result.entries_created;
+  } catch (amortErr) {
+    // Log but don't fail the contract creation
+    console.error('amortizeContract failed', amortErr instanceof Error ? amortErr.message : String(amortErr));
+  }
+
+  return NextResponse.json({ contract: data, entries_created }, { status: 201 });
 }

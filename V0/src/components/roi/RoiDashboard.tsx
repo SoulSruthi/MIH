@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { formatInrLakh } from '@/lib/format-inr';
 import { useOrgId } from '@/lib/use-org-id';
 
@@ -17,18 +19,46 @@ type FunnelEntry = {
   cpl: number;
 };
 
+type VarianceAlert = {
+  id: string;
+  alert_type: string;
+  severity: string;
+  period_start: string;
+  period_end: string;
+  context: Record<string, unknown>;
+  resolved_at: string | null;
+};
+
+function severityBadge(s: string) {
+  if (s === 'critical') return <Badge variant="destructive">{s}</Badge>;
+  if (s === 'warning') return <Badge variant="warning">{s}</Badge>;
+  return <Badge variant="secondary">{s}</Badge>;
+}
+
+function alertLabel(t: string) {
+  const labels: Record<string, string> = {
+    spend_overrun: 'Spend Overrun',
+    booking_shortfall: 'Booking Shortfall',
+    cpb_spike: 'CPB Spike',
+    source_underperforming: 'Source Underperforming',
+  };
+  return labels[t] ?? t.replace(/_/g, ' ');
+}
+
 export function RoiDashboard() {
   const orgId = useOrgId();
   const [funnel, setFunnel] = useState<FunnelEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalSpend, setTotalSpend] = useState(0);
+  const [alerts, setAlerts] = useState<VarianceAlert[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [funnelRes, spendRes] = await Promise.all([
+      const [funnelRes, spendRes, alertsRes] = await Promise.all([
         fetch('/api/metrics/funnel?group_by=source', { headers: { 'x-org-id': orgId } }),
         fetch('/api/spend/entries', { headers: { 'x-org-id': orgId } }),
+        fetch('/api/variance/alerts?resolved=false&limit=5', { headers: { 'x-org-id': orgId } }),
       ]);
       if (funnelRes.ok) {
         const d = (await funnelRes.json()) as { funnel: FunnelEntry[] };
@@ -39,10 +69,14 @@ export function RoiDashboard() {
         const total = (d.entries ?? []).reduce((acc, e) => acc + e.amount_paise, 0);
         setTotalSpend(total);
       }
+      if (alertsRes.ok) {
+        const d = (await alertsRes.json()) as { alerts: VarianceAlert[] };
+        setAlerts(d.alerts ?? []);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [orgId]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
@@ -53,6 +87,7 @@ export function RoiDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* KPI bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Total Spend', value: formatInrLakh(totalSpend) },
@@ -63,12 +98,35 @@ export function RoiDashboard() {
           <Card key={stat.label} className="rounded-xl shadow-sm border-slate-200">
             <CardContent className="px-4 py-3">
               <p className="text-xs text-slate-500">{stat.label}</p>
-              <p className="text-lg font-bold text-slate-900 mt-0.5">{loading ? <span className="text-slate-300 animate-pulse">—</span> : stat.value}</p>
+              <p className="text-lg font-bold text-slate-900 mt-0.5">
+                {loading ? <span className="text-slate-300 animate-pulse">—</span> : stat.value}
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Active variance alerts */}
+      {!loading && alerts.length > 0 && (
+        <Card className="rounded-xl shadow-sm border-amber-200 bg-amber-50">
+          <CardHeader className="py-3 px-5 border-b border-amber-200">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-amber-800">Active Alerts</CardTitle>
+              <Link href="/roi/alerts" className="text-xs text-amber-700 hover:underline">View all →</Link>
+            </div>
+          </CardHeader>
+          <CardContent className="px-5 py-3 space-y-2">
+            {alerts.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-amber-900 font-medium">{alertLabel(a.alert_type)}</span>
+                {severityBadge(a.severity)}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Funnel by source */}
       <Card className="rounded-xl shadow-sm border-slate-200">
         <CardHeader className="py-3 px-5 border-b">
           <CardTitle className="text-sm font-medium text-slate-600">Funnel by Source</CardTitle>
@@ -79,7 +137,9 @@ export function RoiDashboard() {
               {[...Array(4)].map((_, i) => <div key={i} className="h-8 rounded bg-slate-100 animate-pulse" />)}
             </div>
           ) : funnel.length === 0 ? (
-            <p className="px-5 py-8 text-center text-slate-400 text-sm">No data yet. Add spend entries and sources to see funnel data.</p>
+            <p className="px-5 py-8 text-center text-slate-400 text-sm">
+              No data yet. Add spend entries and sources to see funnel data.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -110,6 +170,24 @@ export function RoiDashboard() {
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Attribution model comparison link */}
+      <Card className="rounded-xl shadow-sm border-slate-200">
+        <CardContent className="px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Attribution Model Comparison</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              First-touch vs last-touch vs time-decay — side-by-side for every conversion event.
+            </p>
+          </div>
+          <Link
+            href="/roi/comparison"
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 whitespace-nowrap"
+          >
+            View comparison →
+          </Link>
         </CardContent>
       </Card>
     </div>

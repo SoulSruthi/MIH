@@ -112,6 +112,7 @@ const NAV: NavItem[] = [
       { label: 'ROI Dashboard', href: '/roi', icon: PieChart },
       { label: 'Spend Management', href: '/roi/spend', icon: Wallet },
       { label: 'Variance Alerts', href: '/roi/alerts', icon: BellRing },
+      { label: 'Model Comparison', href: '/roi/comparison', icon: GitBranch },
     ],
   },
   {
@@ -119,6 +120,7 @@ const NAV: NavItem[] = [
     icon: ClipboardList,
     children: [
       { label: 'Queue', href: '/reconciliation', icon: ClipboardList },
+      { label: 'SF Import', href: '/reconciliation/sf-import', icon: Inbox },
     ],
   },
   {

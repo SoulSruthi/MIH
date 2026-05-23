@@ -17,12 +17,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const ids = body.ids as string[] | undefined;
   const resolution = body.resolution as string | undefined;
   const resolvedBy = (body.resolved_by as string) ?? 'system';
+  const confirmed = body.confirm === true;
 
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
   }
   if (!resolution) {
     return NextResponse.json({ error: 'resolution is required' }, { status: 400 });
+  }
+
+  // Two-step confirm: without confirm:true, return a preview only
+  if (!confirmed) {
+    return NextResponse.json({
+      preview: true,
+      items_to_resolve: ids.length,
+      ids,
+      resolution,
+      message: `This will resolve ${ids.length} item(s) with resolution "${resolution}". Re-submit with confirm:true to proceed.`,
+    });
   }
 
   const results: { id: string; success: boolean; error?: string }[] = [];

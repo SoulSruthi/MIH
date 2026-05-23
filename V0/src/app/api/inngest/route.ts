@@ -5,8 +5,20 @@ import { attributionRollupFunction } from '@/inngest/functions/attribution-rollu
 import { anomalyDigestFunction } from '@/inngest/functions/anomaly-digest';
 import { attributionRecomputeFunction } from '@/inngest/functions/attribution-recompute';
 import { projectSourceAutoDisableFunction } from '@/inngest/functions/project-source-autodisable';
+import { planVarianceCheckFunction } from '@/inngest/functions/plan-variance-check';
+import { orphanSpendDetectionFunction } from '@/inngest/functions/orphan-spend-detection';
+import { slaExpiryFunction } from '@/inngest/functions/sla-expiry';
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [spendSyncFunction, attributionRollupFunction, anomalyDigestFunction, attributionRecomputeFunction, projectSourceAutoDisableFunction],
+  functions: [
+    spendSyncFunction,
+    attributionRollupFunction,
+    anomalyDigestFunction,
+    attributionRecomputeFunction,
+    projectSourceAutoDisableFunction,
+    planVarianceCheckFunction,
+    orphanSpendDetectionFunction,
+    slaExpiryFunction,
+  ],
 });

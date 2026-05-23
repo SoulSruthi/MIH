@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getItem, updateState } from './queue';
+import { executeResolutionActions } from './actions';
 import type { ReconciliationItem, ReconciliationAuditEntry } from './types';
 
 export async function resolveItem(
@@ -16,13 +17,27 @@ export async function resolveItem(
     throw new Error(`Item is already ${item.state}`);
   }
 
+  // Execute downstream actions for this item type
+  const actionResult = await executeResolutionActions(
+    item,
+    resolution,
+    resolvedBy,
+    resolutionActions ?? {},
+  );
+
+  const mergedActions: Record<string, unknown> = {
+    ...(resolutionActions ?? {}),
+    actions_taken: actionResult.actions_taken,
+    execution_errors: actionResult.errors.length > 0 ? actionResult.errors : undefined,
+  };
+
   return updateState(
     id,
     orgId,
     {
       state: 'resolved',
       resolution,
-      resolution_actions: resolutionActions ?? null,
+      resolution_actions: mergedActions,
       resolved_by: resolvedBy,
       resolved_at: new Date().toISOString(),
     },
