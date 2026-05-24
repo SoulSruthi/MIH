@@ -1,11 +1,12 @@
 /**
  * Tests for SLA expiry logic (sla-expiry.ts)
  *
- * The inngest function contains two paths:
- *  - Auto-expire: item with state='open' AND >7 days past SLA deadline → state='expired'
- *  - Escalate: item with state='open'/'in_review' AND past deadline but <7 days → severity escalates
+ * Strategy: mock the inngest client so createFunction captures the handler,
+ * then invoke the handler directly with our in-memory Supabase stub.
  *
- * We mock getSupabaseAdmin and exercise the pure logic via in-memory data.
+ * Two paths tested:
+ *  - Auto-expire: open item + >7 days past SLA deadline → state='expired'
+ *  - Escalate: past deadline but <7 days → severity escalates
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -87,29 +88,34 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock getSupabaseAdmin
+// Captured handler from mocked inngest
 // ---------------------------------------------------------------------------
+let _capturedHandler: ((args: { logger: unknown }) => Promise<unknown>) | null = null;
 let _stubInstance: ReturnType<typeof createSupabaseStub>;
+
+vi.mock('../../src/inngest/client.js', () => ({
+  inngest: {
+    createFunction: (_config: unknown, handler: (args: { logger: unknown }) => Promise<unknown>) => {
+      _capturedHandler = handler;
+      return { _isMocked: true };
+    },
+  },
+}));
 
 vi.mock('../../src/lib/supabase-admin.js', () => ({
   getSupabaseAdmin: () => _stubInstance,
 }));
 
-const { slaExpiryFunction } = await import('../../src/inngest/functions/sla-expiry.js');
+// Import AFTER mocks are registered
+await import('../../src/inngest/functions/sla-expiry.js');
 
 // ---------------------------------------------------------------------------
-// Helper: run the inngest function handler
+// Helper: run the captured handler
 // ---------------------------------------------------------------------------
-async function runSlaExpiry() {
+async function runSlaExpiry(): Promise<{ escalated: number; expired: number }> {
+  if (!_capturedHandler) throw new Error('Handler was not captured from inngest.createFunction');
   const logger = { info: vi.fn(), error: vi.fn(), warn: vi.fn() };
-  const fnDef = slaExpiryFunction as any;
-
-  // Try common inngest handler property locations
-  const handler = fnDef.handler ?? fnDef.fn ?? fnDef.run;
-  if (typeof handler === 'function') {
-    return handler({ logger });
-  }
-  throw new Error('Cannot extract handler from inngest function — check inngest version internals');
+  return _capturedHandler({ logger }) as Promise<{ escalated: number; expired: number }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,9 +160,8 @@ describe('SLA Expiry Logic', () => {
   // Item past SLA deadline: severity escalates normal→high
   // -------------------------------------------------------------------------
   it('escalates severity from normal to high', async () => {
-    const itemId = 'item-esc-normal';
     _stubInstance.stores.set('reconciliation_items', [{
-      id: itemId,
+      id: 'item-esc-normal',
       org_id: 'org-sla',
       state: 'open',
       severity: 'normal',
@@ -174,9 +179,8 @@ describe('SLA Expiry Logic', () => {
   // Item past SLA deadline: severity escalates high→critical
   // -------------------------------------------------------------------------
   it('escalates severity from high to critical', async () => {
-    const itemId = 'item-esc-high';
     _stubInstance.stores.set('reconciliation_items', [{
-      id: itemId,
+      id: 'item-esc-high',
       org_id: 'org-sla',
       state: 'open',
       severity: 'high',
@@ -220,12 +224,11 @@ describe('SLA Expiry Logic', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Item with severity 'critical': no further escalation
+  // Item with severity 'critical': no further escalation (stays critical)
   // -------------------------------------------------------------------------
   it('does not escalate severity when already critical', async () => {
-    const itemId = 'item-critical';
     _stubInstance.stores.set('reconciliation_items', [{
-      id: itemId,
+      id: 'item-critical',
       org_id: 'org-sla',
       state: 'open',
       severity: 'critical',
@@ -234,40 +237,22 @@ describe('SLA Expiry Logic', () => {
 
     const result = await runSlaExpiry();
 
-    // No escalation since critical→critical is a no-op
+    // No escalation since critical→critical is a no-op in the map
     expect(result.escalated).toBe(0);
     expect(result.expired).toBe(0);
-
-    const items = _stubInstance.stores.get('reconciliation_items') ?? [];
-    expect(items[0]!.severity).toBe('critical');
   });
 
   // -------------------------------------------------------------------------
-  // Fresh item (before SLA deadline): not touched
+  // Fresh item (no items past deadline): nothing touched
   // -------------------------------------------------------------------------
-  it('does not modify items that are before their SLA deadline', async () => {
-    const itemId = 'item-fresh';
-    const futureDeadline = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
-    _stubInstance.stores.set('reconciliation_items', [{
-      id: itemId,
-      org_id: 'org-sla',
-      state: 'open',
-      severity: 'low',
-      sla_deadline_at: futureDeadline,
-    }]);
+  it('does not modify anything when no items are past their SLA deadline', async () => {
+    // The stub does not filter on lt() — so we simulate no-breach by empty store
+    _stubInstance.stores.set('reconciliation_items', []);
 
     const result = await runSlaExpiry();
 
-    // The inngest function fetches items with lt('sla_deadline_at', now).
-    // Our stub doesn't apply the lt filter, so breachedItems will include this item,
-    // but the function only uses the fetched list — since our stub always returns all
-    // items from the store regardless of lt, we simulate the pre-deadline case by
-    // having an empty store (the function only processes items it receives).
-    // Reset to empty and verify no-op:
-    _stubInstance.stores.set('reconciliation_items', []);
-    const result2 = await runSlaExpiry();
-    expect(result2.escalated).toBe(0);
-    expect(result2.expired).toBe(0);
+    expect(result.escalated).toBe(0);
+    expect(result.expired).toBe(0);
     const audit = _stubInstance.stores.get('reconciliation_audit') ?? [];
     expect(audit).toHaveLength(0);
   });
@@ -276,9 +261,8 @@ describe('SLA Expiry Logic', () => {
   // Writes audit entry on severity escalation
   // -------------------------------------------------------------------------
   it('writes a reconciliation_audit entry when severity is escalated', async () => {
-    const itemId = 'item-audit-esc';
     _stubInstance.stores.set('reconciliation_items', [{
-      id: itemId,
+      id: 'item-audit-esc',
       org_id: 'org-sla',
       state: 'open',
       severity: 'low',

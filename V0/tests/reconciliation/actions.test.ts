@@ -23,21 +23,19 @@ function createSupabaseStub(stores: TableStore = new Map()) {
     let _insertData: MockRow | MockRow[] | null = null;
     let _singleMode = false;
     let _updateData: MockRow | null = null;
-    let _limit: number | null = null;
-    let _deleteMode = false;
 
     const self = {
       select: (_fields = '*') => self,
       insert: (data: MockRow | MockRow[]) => { _insertData = data; return self; },
       upsert: (data: MockRow | MockRow[], _opts?: unknown) => { _insertData = data; return self; },
       update: (data: MockRow) => { _updateData = data; return self; },
-      delete: () => { _deleteMode = true; return self; },
+      delete: () => self,
       eq: (field: string, value: unknown) => { _filters.push({ field, op: 'eq', value }); return self; },
       not: (_f: string, _op: string, _v: unknown) => self,
       is: (_f: string, _v: unknown) => self,
       in: (_f: string, _v: unknown) => self,
       gt: (_f: string, _v: unknown) => self,
-      limit: (n: number) => { _limit = n; return self; },
+      limit: (_n: number) => self,
       order: () => self,
       maybeSingle: () => { _singleMode = true; return self; },
       single: () => { _singleMode = true; return self; },
@@ -71,7 +69,6 @@ function createSupabaseStub(stores: TableStore = new Map()) {
         for (const { field, value } of _filters) {
           rows = rows.filter(r => r[field] === value);
         }
-        if (_limit !== null) rows = rows.slice(0, _limit);
         const result = _singleMode ? rows[0] ?? null : rows;
         return resolve({ data: result, error: null });
       },
@@ -84,22 +81,23 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock getSupabaseAdmin — must be declared before any imports that use it
+// Mock getSupabaseAdmin — must be declared before importing the tested module
+// vi.mock is hoisted to the top of the file by vitest's transform.
+// We use a module-level variable that we update in beforeEach.
 // ---------------------------------------------------------------------------
-let _stubInstance: ReturnType<typeof createSupabaseStub>;
+const stubHolder = { instance: null as ReturnType<typeof createSupabaseStub> | null };
 
 vi.mock('../../src/lib/supabase-admin.js', () => ({
-  getSupabaseAdmin: () => _stubInstance,
+  getSupabaseAdmin: () => stubHolder.instance,
 }));
 
-// Import AFTER mock registration
-const { executeResolutionActions } = await import('../../src/modules/reconciliation/actions.js');
+// Regular (non-dynamic) import — vi.mock hoisting ensures mock is active first
+import { executeResolutionActions } from '../../src/modules/reconciliation/actions.js';
+import type { ReconciliationItem } from '../../src/modules/reconciliation/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-import type { ReconciliationItem } from '../../src/modules/reconciliation/types.js';
-
 function makeItem(overrides: Partial<ReconciliationItem> = {}): ReconciliationItem {
   return {
     id: 'item-001',
@@ -129,7 +127,7 @@ function makeItem(overrides: Partial<ReconciliationItem> = {}): ReconciliationIt
 
 describe('executeResolutionActions', () => {
   beforeEach(() => {
-    _stubInstance = createSupabaseStub();
+    stubHolder.instance = createSupabaseStub();
   });
 
   // -------------------------------------------------------------------------
@@ -138,7 +136,7 @@ describe('executeResolutionActions', () => {
   // -------------------------------------------------------------------------
   it('disputed_cp_credit + override_attribution creates attribution result and CP accrual', async () => {
     // Pre-seed attribution_models so the override branch finds a model
-    _stubInstance.stores.set('attribution_models', [{
+    stubHolder.instance!.stores.set('attribution_models', [{
       id: 'model-ft',
       org_id: 'org-test',
       model_code: 'first_touch_v1',
@@ -161,12 +159,12 @@ describe('executeResolutionActions', () => {
 
     expect(result.errors).toHaveLength(0);
     // Attribution result should be inserted
-    const attrResults = _stubInstance.stores.get('attribution_results') ?? [];
+    const attrResults = stubHolder.instance!.stores.get('attribution_results') ?? [];
     expect(attrResults.length).toBeGreaterThanOrEqual(1);
     expect(attrResults[0]!.reason).toBe('manual_override');
 
     // CP accrual should be inserted
-    const accruals = _stubInstance.stores.get('cp_commission_accruals') ?? [];
+    const accruals = stubHolder.instance!.stores.get('cp_commission_accruals') ?? [];
     expect(accruals).toHaveLength(1);
     expect(accruals[0]!.commission_pct).toBe(0.03);
     expect(result.actions_taken.some(a => a.includes('CP commission accrual created'))).toBe(true);
@@ -189,12 +187,12 @@ describe('executeResolutionActions', () => {
     const result = await executeResolutionActions(item, 'confirm_cp_credit', 'actor-2');
 
     expect(result.errors).toHaveLength(0);
-    // No attribution_results should be created (no model, no override path)
-    const attrResults = _stubInstance.stores.get('attribution_results') ?? [];
+    // No attribution_results should be created (no model found, no override path)
+    const attrResults = stubHolder.instance!.stores.get('attribution_results') ?? [];
     expect(attrResults).toHaveLength(0);
 
     // CP accrual should be created
-    const accruals = _stubInstance.stores.get('cp_commission_accruals') ?? [];
+    const accruals = stubHolder.instance!.stores.get('cp_commission_accruals') ?? [];
     expect(accruals).toHaveLength(1);
     expect(accruals[0]!.cp_id).toBe('cp-888');
     expect(result.actions_taken.some(a => a.includes('CP commission accrual created'))).toBe(true);
@@ -217,7 +215,7 @@ describe('executeResolutionActions', () => {
     const result = await executeResolutionActions(item, 'accept_backfill', 'actor-3');
 
     expect(result.errors).toHaveLength(0);
-    const leads = _stubInstance.stores.get('raw_leads') ?? [];
+    const leads = stubHolder.instance!.stores.get('raw_leads') ?? [];
     expect(leads).toHaveLength(1);
     expect(leads[0]!.org_id).toBe('org-test');
     expect(leads[0]!.name).toBe('Rajesh Kumar');
@@ -231,7 +229,7 @@ describe('executeResolutionActions', () => {
   // Should: insert attribution_result using the model from DB
   // -------------------------------------------------------------------------
   it('manual_call_no_tracking + accept_manual_call creates attribution_result', async () => {
-    _stubInstance.stores.set('attribution_models', [{
+    stubHolder.instance!.stores.set('attribution_models', [{
       id: 'model-ft2',
       org_id: 'org-test',
       model_code: 'first_touch_v1',
@@ -249,7 +247,7 @@ describe('executeResolutionActions', () => {
     const result = await executeResolutionActions(item, 'accept_manual_call', 'actor-4');
 
     expect(result.errors).toHaveLength(0);
-    const attrResults = _stubInstance.stores.get('attribution_results') ?? [];
+    const attrResults = stubHolder.instance!.stores.get('attribution_results') ?? [];
     expect(attrResults).toHaveLength(1);
     expect(attrResults[0]!.reason).toBe('manual_call_accepted');
     expect(attrResults[0]!.winning_source_id).toBe('src-call');
@@ -274,14 +272,14 @@ describe('executeResolutionActions', () => {
     expect(result.errors).toHaveLength(0);
     expect(result.actions_taken.some(a => a.includes('Merge approved'))).toBe(true);
 
-    const audit = _stubInstance.stores.get('reconciliation_audit') ?? [];
+    const audit = stubHolder.instance!.stores.get('reconciliation_audit') ?? [];
     expect(audit).toHaveLength(1);
     expect(audit[0]!.action).toBe('resolution_set');
   });
 
   // -------------------------------------------------------------------------
   // low_conf_identity_merge + reject_merge
-  // Should: record rejection, no audit insert, no crash
+  // Should: record rejection, no audit insert
   // -------------------------------------------------------------------------
   it('low_conf_identity_merge + reject_merge records rejection without audit entry', async () => {
     const item = makeItem({
@@ -297,7 +295,7 @@ describe('executeResolutionActions', () => {
     expect(result.errors).toHaveLength(0);
     expect(result.actions_taken.some(a => a.includes('rejected'))).toBe(true);
     // No audit entry for rejection
-    const audit = _stubInstance.stores.get('reconciliation_audit') ?? [];
+    const audit = stubHolder.instance!.stores.get('reconciliation_audit') ?? [];
     expect(audit).toHaveLength(0);
   });
 

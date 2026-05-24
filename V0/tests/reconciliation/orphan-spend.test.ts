@@ -1,9 +1,9 @@
 /**
  * Tests for orphan spend detection logic (orphan-spend-detection.ts)
  *
- * The inngest function calls getSupabaseAdmin(), deduplicateItem(), and createItem()
- * internally. We mock those modules and test the core detection logic by
- * exercising the stub-wired data paths.
+ * Strategy: mock the inngest client so createFunction captures the handler.
+ * Also mock getSupabaseAdmin, deduplicateItem, and createItem.
+ * Then test the detection logic via seeded in-memory data.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -85,9 +85,24 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 }
 
 // ---------------------------------------------------------------------------
-// Track createItem calls for assertion
+// Module-level state for mocks
 // ---------------------------------------------------------------------------
-const createdItems: unknown[] = [];
+let _capturedHandler: ((args: { logger: unknown }) => Promise<unknown>) | null = null;
+let _stubInstance: ReturnType<typeof createSupabaseStub>;
+const _createdItems: unknown[] = [];
+let _existingOriginId: string | null = null;
+
+// ---------------------------------------------------------------------------
+// Mocks — must be before any import of the tested module
+// ---------------------------------------------------------------------------
+vi.mock('../../src/inngest/client.js', () => ({
+  inngest: {
+    createFunction: (_config: unknown, handler: (args: { logger: unknown }) => Promise<unknown>) => {
+      _capturedHandler = handler;
+      return { _isMocked: true };
+    },
+  },
+}));
 
 vi.mock('../../src/lib/supabase-admin.js', () => ({
   getSupabaseAdmin: () => _stubInstance,
@@ -95,44 +110,69 @@ vi.mock('../../src/lib/supabase-admin.js', () => ({
 
 vi.mock('../../src/modules/reconciliation/queue.js', () => ({
   deduplicateItem: async (orgId: string, itemType: string, _clusterId?: string, originEventId?: string) => {
-    // Return existing open item only when _existingOriginId is set
     if (_existingOriginId && originEventId === _existingOriginId) {
       return { id: 'existing-item', org_id: orgId, item_type: itemType, state: 'open' };
     }
     return null;
   },
   createItem: async (input: unknown) => {
-    createdItems.push(input);
+    _createdItems.push(input);
     return { id: crypto.randomUUID(), ...(input as Record<string, unknown>) };
   },
 }));
 
-let _stubInstance: ReturnType<typeof createSupabaseStub>;
-let _existingOriginId: string | null = null;
-
-// Import AFTER mock declarations
-const { orphanSpendDetectionFunction } = await import('../../src/inngest/functions/orphan-spend-detection.js');
+// Import AFTER mocks
+await import('../../src/inngest/functions/orphan-spend-detection.js');
 
 // ---------------------------------------------------------------------------
-// Helper to run the inngest function handler directly
+// Helper: run the captured handler
 // ---------------------------------------------------------------------------
-
-async function runOrphanDetection(stub: ReturnType<typeof createSupabaseStub>) {
-  _stubInstance = stub;
-  const handler = (orphanSpendDetectionFunction as any).handler ?? (orphanSpendDetectionFunction as any).fn;
+async function runOrphanDetection(): Promise<{ checked: number; items_created: number }> {
+  if (!_capturedHandler) throw new Error('Handler was not captured from inngest.createFunction');
   const logger = { info: vi.fn(), error: vi.fn(), warn: vi.fn() };
+  return _capturedHandler({ logger }) as Promise<{ checked: number; items_created: number }>;
+}
 
-  if (typeof handler === 'function') {
-    return handler({ logger });
-  }
+// ---------------------------------------------------------------------------
+// Helper: seed a scenario in the stub
+// ---------------------------------------------------------------------------
+function seedScenario(stub: ReturnType<typeof createSupabaseStub>, options: {
+  orgId: string;
+  sourceId: string;
+  spendPaise: number;
+  bookingsCount: number;
+  leadsCount: number;
+}) {
+  stub.stores.set('spend_entries', [{
+    id: crypto.randomUUID(),
+    org_id: options.orgId,
+    source_id: options.sourceId,
+    amount_paise: options.spendPaise,
+    period_start: '2026-04-24',
+    period_end: '2026-05-23',
+  }]);
 
-  // Inngest v4 stores the handler differently — extract via internal structure
-  // The function exposes an 'fn' or we call the run method
-  const fnDef = orphanSpendDetectionFunction as any;
-  if (fnDef.run) {
-    return fnDef.run({ logger });
+  const bookings: MockRow[] = [];
+  for (let i = 0; i < options.bookingsCount; i++) {
+    bookings.push({
+      id: crypto.randomUUID(),
+      org_id: options.orgId,
+      winning_source_id: options.sourceId,
+      created_at: new Date().toISOString(),
+    });
   }
-  throw new Error('Cannot extract handler from inngest function');
+  stub.stores.set('attribution_results', bookings);
+
+  const leads: MockRow[] = [];
+  for (let i = 0; i < options.leadsCount; i++) {
+    leads.push({
+      id: crypto.randomUUID(),
+      org_id: options.orgId,
+      source_id: options.sourceId,
+      ingested_at: new Date().toISOString(),
+    });
+  }
+  stub.stores.set('raw_leads', leads);
 }
 
 // ---------------------------------------------------------------------------
@@ -141,55 +181,10 @@ async function runOrphanDetection(stub: ReturnType<typeof createSupabaseStub>) {
 
 describe('Orphan Spend Detection Logic', () => {
   beforeEach(() => {
-    createdItems.length = 0;
+    _createdItems.length = 0;
     _existingOriginId = null;
     _stubInstance = createSupabaseStub();
   });
-
-  // -------------------------------------------------------------------------
-  // Helper to seed a scenario in the stub
-  // -------------------------------------------------------------------------
-  function seedScenario(stub: ReturnType<typeof createSupabaseStub>, options: {
-    orgId: string;
-    sourceId: string;
-    spendPaise: number;
-    bookingsCount: number;
-    leadsCount: number;
-  }) {
-    // Seed spend_entries
-    stub.stores.set('spend_entries', [{
-      id: crypto.randomUUID(),
-      org_id: options.orgId,
-      source_id: options.sourceId,
-      amount_paise: options.spendPaise,
-      period_start: '2026-04-24',
-      period_end: '2026-05-23',
-    }]);
-
-    // Seed attribution_results (bookings)
-    const bookings: MockRow[] = [];
-    for (let i = 0; i < options.bookingsCount; i++) {
-      bookings.push({
-        id: crypto.randomUUID(),
-        org_id: options.orgId,
-        winning_source_id: options.sourceId,
-        created_at: new Date().toISOString(),
-      });
-    }
-    stub.stores.set('attribution_results', bookings);
-
-    // Seed raw_leads
-    const leads: MockRow[] = [];
-    for (let i = 0; i < options.leadsCount; i++) {
-      leads.push({
-        id: crypto.randomUUID(),
-        org_id: options.orgId,
-        source_id: options.sourceId,
-        ingested_at: new Date().toISOString(),
-      });
-    }
-    stub.stores.set('raw_leads', leads);
-  }
 
   // -------------------------------------------------------------------------
   // >₹50K spend + 0 bookings + leads > 0 → creates reconciliation item
@@ -198,43 +193,45 @@ describe('Orphan Spend Detection Logic', () => {
     seedScenario(_stubInstance, {
       orgId: 'org-1',
       sourceId: 'src-orphan',
-      spendPaise: 6_000_000, // ₹60K
+      spendPaise: 6_000_000, // ₹60K — above ₹50K threshold
       bookingsCount: 0,
       leadsCount: 5,
     });
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
-    expect(createdItems).toHaveLength(1);
-    const item = createdItems[0] as Record<string, unknown>;
+    expect(result.items_created).toBe(1);
+    expect(_createdItems).toHaveLength(1);
+    const item = _createdItems[0] as Record<string, unknown>;
     expect(item.item_type).toBe('orphan_spend_investigation');
     expect(item.org_id).toBe('org-1');
     const ctx = item.context as Record<string, unknown>;
     expect(ctx.source_id).toBe('src-orphan');
-    expect((ctx.total_spend_paise as number)).toBeGreaterThan(5_000_000);
+    expect(ctx.total_spend_paise as number).toBeGreaterThan(5_000_000);
   });
 
   // -------------------------------------------------------------------------
   // <₹50K spend → does NOT create item (below threshold)
   // -------------------------------------------------------------------------
-  it('does NOT create item when spend is below ₹50K threshold', async () => {
+  it('does NOT create item when spend is at or below ₹50K threshold', async () => {
     seedScenario(_stubInstance, {
       orgId: 'org-2',
       sourceId: 'src-low',
-      spendPaise: 4_000_000, // ₹40K
+      spendPaise: 4_000_000, // ₹40K — below threshold
       bookingsCount: 0,
       leadsCount: 3,
     });
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
-    expect(createdItems).toHaveLength(0);
+    expect(result.items_created).toBe(0);
+    expect(_createdItems).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------
   // Bookings > 0 → does NOT create item (spend has returns)
   // -------------------------------------------------------------------------
-  it('does NOT create item when source has bookings', async () => {
+  it('does NOT create item when source has bookings (attribution results)', async () => {
     seedScenario(_stubInstance, {
       orgId: 'org-3',
       sourceId: 'src-booked',
@@ -243,9 +240,10 @@ describe('Orphan Spend Detection Logic', () => {
       leadsCount: 10,
     });
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
-    expect(createdItems).toHaveLength(0);
+    expect(result.items_created).toBe(0);
+    expect(_createdItems).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------
@@ -260,17 +258,18 @@ describe('Orphan Spend Detection Logic', () => {
       leadsCount: 0,
     });
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
-    expect(createdItems).toHaveLength(0);
+    expect(result.items_created).toBe(0);
+    expect(_createdItems).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------
   // Deduplication: existing open item → no duplicate created
   // -------------------------------------------------------------------------
-  it('does NOT create duplicate item when open item already exists for source', async () => {
+  it('does NOT create duplicate item when an open item already exists for source', async () => {
     const sourceId = 'src-dup';
-    _existingOriginId = sourceId; // cause deduplicateItem mock to return existing
+    _existingOriginId = sourceId; // deduplicateItem mock returns existing
 
     seedScenario(_stubInstance, {
       orgId: 'org-5',
@@ -280,10 +279,10 @@ describe('Orphan Spend Detection Logic', () => {
       leadsCount: 4,
     });
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
-    // deduplicateItem returned existing → no new item
-    expect(createdItems).toHaveLength(0);
+    expect(result.items_created).toBe(0);
+    expect(_createdItems).toHaveLength(0);
   });
 
   // -------------------------------------------------------------------------
@@ -302,11 +301,12 @@ describe('Orphan Spend Detection Logic', () => {
     ]);
     _stubInstance.stores.set('attribution_results', []);
 
-    await runOrphanDetection(_stubInstance);
+    const result = await runOrphanDetection();
 
     // Only src-big (₹80K > ₹50K) should trigger an item
-    expect(createdItems).toHaveLength(1);
-    const item = createdItems[0] as Record<string, unknown>;
+    expect(result.items_created).toBe(1);
+    expect(_createdItems).toHaveLength(1);
+    const item = _createdItems[0] as Record<string, unknown>;
     const ctx = item.context as Record<string, unknown>;
     expect(ctx.source_id).toBe('src-big');
   });
