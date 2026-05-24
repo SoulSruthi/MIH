@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type Touchpoint = {
   source_id: string;
@@ -36,6 +35,7 @@ interface AttributionExplainProps {
 }
 
 export function AttributionExplain({ conversionEventId }: AttributionExplainProps) {
+  const orgId = useOrgId();
   const [data, setData] = useState<AttributionExplanation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function AttributionExplain({ conversionEventId }: AttributionExplainProp
     try {
       const res = await fetch(
         `/api/attribution/explain/${conversionEventId}`,
-        { headers: { 'x-org-id': ORG_ID } },
+        { headers: { 'x-org-id': orgId } },
       );
       if (!res.ok) {
         setError(`Could not load explanation (HTTP ${res.status}).`);

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { SourceCategory } from '@/app/api/admin/sources/route';
+import { useOrgId } from '@/lib/use-org-id';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

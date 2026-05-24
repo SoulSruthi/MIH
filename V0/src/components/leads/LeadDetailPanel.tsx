@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useOrgId } from '@/lib/use-org-id';
 
 // --- Types ---
 

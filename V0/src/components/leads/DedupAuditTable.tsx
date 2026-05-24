@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useOrgId } from '@/lib/use-org-id';
 
 // Types
 type DedupAuditEntry = {

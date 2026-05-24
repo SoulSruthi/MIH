@@ -13,8 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type DisputeState = 'open' | 'in_review' | 'resolved';
 
@@ -42,6 +41,7 @@ const STATE_BADGE: Record<
 };
 
 export function DisputedQueue() {
+  const orgId = useOrgId();
   const [activeState, setActiveState] = useState<DisputeState>('open');
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ export function DisputedQueue() {
     setError(null);
     try {
       const res = await fetch(`/api/attribution/disputed?state=${state}`, {
-        headers: { 'x-org-id': ORG_ID },
+        headers: { 'x-org-id': orgId },
       });
       if (!res.ok) {
         setError(`Failed to load disputes (HTTP ${res.status}).`);
@@ -79,7 +79,7 @@ export function DisputedQueue() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-org-id': ORG_ID,
+          'x-org-id': orgId,
         },
         body: JSON.stringify({ state: 'in_review' }),
       });

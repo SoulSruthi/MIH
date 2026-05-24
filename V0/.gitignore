@@ -57,3 +57,6 @@ memory/logs/subagents/*.jsonl
 memory/logs/migrations.jsonl
 memory/logs/gates.jsonl
 memory/logs/pattern-extraction.queue
+
+# Supabase CLI runtime state
+supabase/.temp/

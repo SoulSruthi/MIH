@@ -2,6 +2,106 @@
 
 ---
 
+## v2.4 — Phase 3 + Phase 4: Budget, Channel Partners, Referrals, ROI, Reconciliation
+**Released:** 2026-05-22
+**Branch:** `v2.4`
+**DB migrations:** 021–025 applied
+
+#### Demo Data (Prestige Realty — org `00000000-0000-0000-0000-000000000001`)
+- **12 identity clusters** + **12 golden records** — mapped to all raw inbox leads
+- **3 projects**: Prestige Heights (launch), Prestige Gardens (pre_launch), Prestige Skyline (mid_construction)
+- **5 channel partners** with commission accruals (earned/accrued/paid states)
+- **3 referrers** with consent state, referral codes, submission history
+- **8 conversion events** (5× deal_won, 1× site_visit_completed, 1× qualified, 1× site_visit_scheduled)
+- **6 attribution results** — first-touch model; one CP-claim-blocked case (Arun Selvam: Meta won over CP)
+- **6 site visit events** (2× completed, 1× walk-in, 1× scheduled, 1× no_show, 1× fast-track)
+- **12 spend entries** across Meta, Google, 99acres, MagicBricks, Housing.com, OOH, CP — April + May 2026
+- **3 attribution models**: first_touch_v1 (operational), last_touch_v1, time_decay_v1
+- **5 metric snapshots** — per source × project for May 2026 + overall rollup
+- **3 variance alerts**: booking_shortfall (warning), cpb_spike (critical), spend_overrun (warning)
+- **3 reconciliation items**: disputed_cp_credit (open/high), unmatched_walk_in (in_review), manual_call_no_tracking (open/low)
+- **5 budget allocations** + **4 budget actuals** — Q1 FY2026 plan for Prestige Heights
+- **3 referral submissions** (2× accepted, 1× dedup_existing)
+
+### What's in v2.4
+
+#### Spec 07 — Budget Planning Engine (Phase 3)
+- **Migration 021** — Alters `mih.budgets` with state machine (`draft|in_review|approved|active|superseded|archived`), plan metadata (`plan_code`, `total_booking_target_value`, `default_spend_pct`), approval fields; adds `mih.budget_allocations` (per-project × medium × source breakdown), `mih.budget_actuals` (running pacing for variance)
+- **Module** — `src/modules/budget/service.ts` — createBudget, activateBudget, getVariance, updateActuals
+- **APIs**
+  - `GET/POST /api/budget`
+  - `GET/PATCH /api/budget/[id]`
+  - `POST /api/budget/[id]/activate`
+  - `GET /api/budget/[id]/periods`
+  - `GET /api/budget/[id]/variance`
+- **UI pages** — `/budget`, `/budget/[id]`
+
+#### Spec 08 — Channel Partner Management (Phase 3)
+- **Migration 022** — Alters `mih.channel_partners` with `cp_type`, `parent_cp_id`, `default_commission_pct`, `rera_number`, encrypted PAN/bank; adds `mih.cp_api_keys`, `mih.cp_commission_overrides`, `mih.cp_lead_pushes`, `mih.cp_commission_accruals` (state machine: `earned→accrued→approved→paid→reversed→disputed`, `commission_value` generated column), `mih.cp_fy_targets`
+- **Module** — `src/modules/channel-partners/service.ts` — createCP, generateApiKey, createAccrual, approveAccrual, calculateCommission
+- **APIs**
+  - `GET/POST /api/channel-partners`
+  - `GET/PATCH /api/channel-partners/[id]`
+  - `GET /api/channel-partners/[id]/commissions`
+  - `PATCH /api/channel-partners/[id]/commissions/[cid]`
+  - `GET/POST /api/channel-partners/[id]/api-keys`
+- **UI pages** — `/channel-partners`, `/channel-partners/[id]`
+
+#### Spec 09 — Referral Program (Phase 3)
+- **Migration 023** — Alters `mih.referrers` with `referrer_code`, `crm_customer_id`, `bookings_count`, `consent_state` (`pending|opted_in|opted_out|revoked`), `consent_channels[]`, `default_commission_pct=0.015`, `reward_preference`; adds `mih.referral_submissions`, `mih.referral_commission_accruals` (same state machine as CP, plus `reward_kind`)
+- **Module** — `src/modules/referrals/service.ts` — createReferrer, submitReferral, updateConsent, createAccrual
+- **APIs**
+  - `GET/POST /api/referrals`
+  - `GET/PATCH /api/referrals/[id]`
+  - `GET /api/referrals/[id]/commissions`
+- **UI pages** — `/referrals`, `/referrals/[id]`
+
+#### Spec 10 — ROI Reporting (Phase 4)
+- **Migration 024** — `mih.spend_entries` (idempotent via `UNIQUE(org_id, ingestion_source, external_ref)`), `mih.spend_contracts` (amortization types: monthly/weekly/one_time/custom), `mih.metric_snapshots` (pre-aggregated JSONB, `dimension_key` + `metric_set`), `mih.variance_alerts` (alert types + severity), `mih.saved_reports`
+- **Modules** — `src/modules/roi-reporting/`
+  - `cpb-calculator.ts` — CPB/CPQL/CPL; zero-bookings → 0 (render as "—"), never NaN or /0
+  - `funnel-aggregator.ts` — Lead→Qual→SV Sched→SV Done→Booked per source/project
+  - `snapshot-refresher.ts` — event-driven metric snapshot refresh
+  - `variance-detector.ts` — thresholds: spend >115% → warning, >125% → critical; bookings <70% paced → shortfall
+- **APIs**
+  - `GET/POST /api/spend/entries`
+  - `GET/PATCH/DELETE /api/spend/entries/[id]`
+  - `GET/POST /api/spend/contracts`
+  - `GET /api/spend/unallocated`
+  - `GET /api/metrics/snapshots`
+  - `GET /api/metrics/funnel`
+  - `GET /api/variance/alerts`
+  - `POST /api/variance/alerts/[id]/resolve`
+- **UI pages** — `/roi` (CPB dashboard + funnel), `/roi/spend` (spend management), `/roi/alerts` (variance alerts)
+
+#### Spec 11 — Manual Reconciliation (Phase 4)
+- **Migration 025** — `mih.reconciliation_items` (10 item types, state machine: `open→in_review→resolved→escalated→closed→expired`, SLA deadlines, `context JSONB`, `resolution_actions JSONB`, dedup unique on `(org_id, item_type, cluster_id, origin_event_id)`), `mih.reconciliation_audit` (append-only, immutable), `mih.sf_import_jobs`, `mih.sf_import_row_errors`
+- **Modules** — `src/modules/reconciliation/`
+  - `queue.ts` — createItem, updateState, deduplicateItem
+  - `resolver.ts` — resolveItem, buildResolutionContext
+  - `sla.ts` — assignSLADeadline, checkBreached
+- **APIs**
+  - `GET/POST /api/reconciliation`
+  - `GET/PATCH /api/reconciliation/[id]`
+  - `GET /api/reconciliation/[id]/audit`
+  - `POST /api/reconciliation/bulk-resolve`
+- **UI pages** — `/reconciliation` (queue with filters), `/reconciliation/[id]` (detail + resolution)
+
+#### Navigation
+- Sidebar updated: Budget, Partners (CP + Referrals), ROI, Reconciliation sections added
+
+---
+
+## v2.3 — Gap Fix
+**Released:** 2026-05-22
+**Branch:** `v2.3`
+
+### Fixes
+- Added `GET /api/attribution/conversion-events/[id]` — individual conversion event lookup (gap from v2.2)
+- DB: all Phase 1 + Phase 2 migrations (001–020) confirmed applied and healthy
+
+---
+
 ## v2.2 — Phase 2: Attribution Engine, Site Visits, Projects
 **Released:** 2026-05-21  
 **Merged PR:** #9  

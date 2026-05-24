@@ -12,8 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type ConversionEvent = {
   id: string;
@@ -28,6 +27,7 @@ type DisputedItem = {
 };
 
 export function AttributionDashboard() {
+  const orgId = useOrgId();
   const [events, setEvents] = useState<ConversionEvent[]>([]);
   const [disputed, setDisputed] = useState<DisputedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,10 +39,10 @@ export function AttributionDashboard() {
     try {
       const [eventsRes, disputedRes] = await Promise.all([
         fetch('/api/attribution/conversion-events?limit=20', {
-          headers: { 'x-org-id': ORG_ID },
+          headers: { 'x-org-id': orgId },
         }),
         fetch('/api/attribution/disputed?state=open', {
-          headers: { 'x-org-id': ORG_ID },
+          headers: { 'x-org-id': orgId },
         }),
       ]);
 

@@ -13,8 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatInrLakh } from '@/lib/format-inr';
-
-const ORG_ID = 'demo-org-id';
+import { useOrgId } from '@/lib/use-org-id';
 
 type LifecycleStage =
   | 'pre_launch'
@@ -70,6 +69,7 @@ interface ProjectDetailProps {
 }
 
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
+  const orgId = useOrgId();
   const [project, setProject] = useState<Project | null>(null);
   const [sources, setSources] = useState<PredominantSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,9 +84,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     setError(null);
     try {
       const [projectRes, sourcesRes] = await Promise.all([
-        fetch(`/api/projects/${projectId}`, { headers: { 'x-org-id': ORG_ID } }),
+        fetch(`/api/projects/${projectId}`, { headers: { 'x-org-id': orgId } }),
         fetch(`/api/projects/${projectId}/predominant-source`, {
-          headers: { 'x-org-id': ORG_ID },
+          headers: { 'x-org-id': orgId },
         }),
       ]);
 
@@ -128,7 +128,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-org-id': ORG_ID,
+          'x-org-id': orgId,
         },
         body: JSON.stringify({ lifecycle_stage: transitionStage }),
       });
