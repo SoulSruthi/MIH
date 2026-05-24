@@ -7,17 +7,18 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id header required' }, { status: 400 });
 
+  const { id } = await params;
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .schema('mih')
     .from('reconciliation_items')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('org_id', orgId)
     .single();
 
@@ -28,10 +29,12 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id header required' }, { status: 400 });
+
+  const { id } = await params;
 
   let body: Record<string, unknown>;
   try {
@@ -47,7 +50,7 @@ export async function PATCH(
     .schema('mih')
     .from('reconciliation_items')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('org_id', orgId)
     .single();
 
@@ -59,7 +62,7 @@ export async function PATCH(
 
   if (body.action === 'resolve') {
     const resolutionText = body.resolution as string;
-    const resolutionOption = body.resolution_actions?.action_type as string | undefined;
+    const resolutionOption = (body.resolution_actions as Record<string, unknown> | undefined)?.action_type as string | undefined;
     const result = resolutionOption
       ? resolveActions(existing as RecItem, resolutionOption)
       : { resolution: resolutionText, actions_taken: [] };
@@ -76,14 +79,14 @@ export async function PATCH(
     auditNote = resolutionText;
   } else if (body.state) {
     updates.state = body.state;
-    auditAction = `state_changed_to_${body.state}`;
+    auditAction = `state_changed_to_${body.state as string}`;
   }
 
   const { data: updated, error: updateErr } = await supabase
     .schema('mih')
     .from('reconciliation_items')
     .update(updates)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single();
 
@@ -91,7 +94,7 @@ export async function PATCH(
 
   // Write audit entry
   await supabase.schema('mih').from('reconciliation_item_audit').insert({
-    item_id: params.id,
+    item_id: id,
     org_id: orgId,
     action: auditAction,
     actor_id: body.resolved_by ?? null,

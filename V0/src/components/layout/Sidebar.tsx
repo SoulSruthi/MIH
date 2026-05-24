@@ -27,6 +27,7 @@ import {
   Target,
   Building2,
   MapPin,
+  ClipboardList,
 } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { cn } from '@/lib/utils';
@@ -81,6 +82,15 @@ const NAV: NavItem[] = [
     icon: Building2,
     children: [
       { label: 'All Projects', href: '/projects', icon: Building2 },
+    ],
+  },
+  {
+    label: 'Reconciliation',
+    icon: ClipboardList,
+    children: [
+      { label: 'Queue', href: '/reconciliation', icon: ClipboardList },
+      { label: 'SF Import', href: '/reconciliation/sf-import', icon: Inbox },
+      { label: 'Audit Dashboard', href: '/reconciliation/audit', icon: BarChart3 },
     ],
   },
   {
