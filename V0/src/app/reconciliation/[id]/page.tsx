@@ -1,5 +1,12 @@
+import type { Metadata } from 'next';
 import { ReconciliationItemDetail } from '@/components/reconciliation/ReconciliationItemDetail';
 
-export default function ReconciliationItemPage({ params }: { params: { id: string } }) {
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Reconciliation Item — MIH',
+};
+
+export default function ReconciliationDetailPage({ params }: { params: { id: string } }) {
   return <ReconciliationItemDetail id={params.id} />;
 }
