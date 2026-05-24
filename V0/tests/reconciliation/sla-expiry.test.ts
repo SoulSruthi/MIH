@@ -62,12 +62,19 @@ function createSupabaseStub(stores: TableStore = new Map()) {
         }
 
         if (_updateData !== null) {
-          let rows = [...store];
-          for (const { field, value } of _filters) {
-            rows = rows.filter(r => r[field] === value);
-          }
-          rows.forEach(r => Object.assign(r, _updateData));
-          const result = _singleMode ? rows[0] ?? null : rows;
+          // Create new objects (not mutate) so existing references keep old values
+          const updatedRows: MockRow[] = [];
+          const newStore: MockRow[] = store.map(r => {
+            const matches = _filters.every(({ field, value }) => r[field] === value);
+            if (matches) {
+              const updated = { ...r, ..._updateData };
+              updatedRows.push(updated);
+              return updated;
+            }
+            return r;
+          });
+          stores.set(table, newStore);
+          const result = _singleMode ? updatedRows[0] ?? null : updatedRows;
           return resolve({ data: result, error: null });
         }
 
@@ -93,7 +100,7 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 let _capturedHandler: ((args: { logger: unknown }) => Promise<unknown>) | null = null;
 let _stubInstance: ReturnType<typeof createSupabaseStub>;
 
-vi.mock('../../src/inngest/client.js', () => ({
+vi.mock('@/inngest/client', () => ({
   inngest: {
     createFunction: (_config: unknown, handler: (args: { logger: unknown }) => Promise<unknown>) => {
       _capturedHandler = handler;
@@ -102,12 +109,12 @@ vi.mock('../../src/inngest/client.js', () => ({
   },
 }));
 
-vi.mock('../../src/lib/supabase-admin.js', () => ({
+vi.mock('@/lib/supabase-admin', () => ({
   getSupabaseAdmin: () => _stubInstance,
 }));
 
 // Import AFTER mocks are registered
-await import('../../src/inngest/functions/sla-expiry.js');
+await import('@/inngest/functions/sla-expiry');
 
 // ---------------------------------------------------------------------------
 // Helper: run the captured handler

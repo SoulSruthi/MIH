@@ -55,12 +55,19 @@ function createSupabaseStub(stores: TableStore = new Map()) {
         }
 
         if (_updateData !== null) {
-          let rows = [...store];
-          for (const { field, value } of _filters) {
-            rows = rows.filter(r => r[field] === value);
-          }
-          rows.forEach(r => Object.assign(r, _updateData));
-          const result = _singleMode ? rows[0] ?? null : rows;
+          // Create new objects (not mutate) so existing references keep old values
+          const updatedRows: MockRow[] = [];
+          const newStore: MockRow[] = store.map(r => {
+            const matches = _filters.every(({ field, value }) => r[field] === value);
+            if (matches) {
+              const updated = { ...r, ..._updateData };
+              updatedRows.push(updated);
+              return updated;
+            }
+            return r;
+          });
+          stores.set(table, newStore);
+          const result = _singleMode ? updatedRows[0] ?? null : updatedRows;
           return resolve({ data: result, error: null });
         }
 
@@ -87,13 +94,13 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 // ---------------------------------------------------------------------------
 const stubHolder = { instance: null as ReturnType<typeof createSupabaseStub> | null };
 
-vi.mock('../../src/lib/supabase-admin.js', () => ({
+vi.mock('@/lib/supabase-admin', () => ({
   getSupabaseAdmin: () => stubHolder.instance,
 }));
 
 // Regular (non-dynamic) import — vi.mock hoisting ensures mock is active first
-import { executeResolutionActions } from '../../src/modules/reconciliation/actions.js';
-import type { ReconciliationItem } from '../../src/modules/reconciliation/types.js';
+import { executeResolutionActions } from '@/modules/reconciliation/actions';
+import type { ReconciliationItem } from '@/modules/reconciliation/types';
 
 // ---------------------------------------------------------------------------
 // Helpers

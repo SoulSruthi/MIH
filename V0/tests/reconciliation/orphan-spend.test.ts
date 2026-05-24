@@ -95,7 +95,7 @@ let _existingOriginId: string | null = null;
 // ---------------------------------------------------------------------------
 // Mocks — must be before any import of the tested module
 // ---------------------------------------------------------------------------
-vi.mock('../../src/inngest/client.js', () => ({
+vi.mock('@/inngest/client', () => ({
   inngest: {
     createFunction: (_config: unknown, handler: (args: { logger: unknown }) => Promise<unknown>) => {
       _capturedHandler = handler;
@@ -104,11 +104,11 @@ vi.mock('../../src/inngest/client.js', () => ({
   },
 }));
 
-vi.mock('../../src/lib/supabase-admin.js', () => ({
+vi.mock('@/lib/supabase-admin', () => ({
   getSupabaseAdmin: () => _stubInstance,
 }));
 
-vi.mock('../../src/modules/reconciliation/queue.js', () => ({
+vi.mock('@/modules/reconciliation/queue', () => ({
   deduplicateItem: async (orgId: string, itemType: string, _clusterId?: string, originEventId?: string) => {
     if (_existingOriginId && originEventId === _existingOriginId) {
       return { id: 'existing-item', org_id: orgId, item_type: itemType, state: 'open' };
@@ -122,7 +122,7 @@ vi.mock('../../src/modules/reconciliation/queue.js', () => ({
 }));
 
 // Import AFTER mocks
-await import('../../src/inngest/functions/orphan-spend-detection.js');
+await import('@/inngest/functions/orphan-spend-detection');
 
 // ---------------------------------------------------------------------------
 // Helper: run the captured handler
