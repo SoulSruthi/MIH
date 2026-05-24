@@ -88,21 +88,21 @@ function createSupabaseStub(stores: TableStore = new Map()) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock getSupabaseAdmin — actions.ts AND resolver.ts both call it
+// Mock getSupabaseAdmin — actions.ts, queue.ts, AND resolver.ts all call it
 // ---------------------------------------------------------------------------
-let _stubInstance: ReturnType<typeof createSupabaseStub>;
+const stubHolder = { instance: null as ReturnType<typeof createSupabaseStub> | null };
 
 vi.mock('../../src/lib/supabase-admin.js', () => ({
-  getSupabaseAdmin: () => _stubInstance,
+  getSupabaseAdmin: () => stubHolder.instance,
 }));
 
-const { resolveItem } = await import('../../src/modules/reconciliation/resolver.js');
+// Regular import — vi.mock hoisting ensures mock is active first
+import { resolveItem } from '../../src/modules/reconciliation/resolver.js';
+import type { ReconciliationItem } from '../../src/modules/reconciliation/types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-import type { ReconciliationItem } from '../../src/modules/reconciliation/types.js';
-
 function makeItem(overrides: Partial<ReconciliationItem> = {}): MockRow {
   return {
     id: 'item-res-001',
@@ -132,15 +132,15 @@ function makeItem(overrides: Partial<ReconciliationItem> = {}): MockRow {
 
 describe('resolveItem', () => {
   beforeEach(() => {
-    _stubInstance = createSupabaseStub();
+    stubHolder.instance = createSupabaseStub();
   });
 
   // -------------------------------------------------------------------------
-  // Happy path: updates item state to 'resolved', calls executeResolutionActions
+  // Happy path: updates item state to 'resolved'
   // -------------------------------------------------------------------------
   it('happy path: resolves item and updates state to resolved', async () => {
     const item = makeItem();
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
     const resolved = await resolveItem(
       'item-res-001',
@@ -160,12 +160,11 @@ describe('resolveItem', () => {
   // -------------------------------------------------------------------------
   it('writes a reconciliation_audit entry with state_change action', async () => {
     const item = makeItem();
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
     await resolveItem('item-res-001', 'org-res', 'close_as_invalid', 'actor-audit');
 
-    const audit = _stubInstance.stores.get('reconciliation_audit') ?? [];
-    // At least one audit entry with state_change
+    const audit = stubHolder.instance!.stores.get('reconciliation_audit') ?? [];
     const stateChange = audit.find(a => a.action === 'state_change');
     expect(stateChange).toBeDefined();
     const newVal = stateChange!.new_value as Record<string, unknown>;
@@ -176,8 +175,7 @@ describe('resolveItem', () => {
   // Item not found: throws descriptive error
   // -------------------------------------------------------------------------
   it('throws error when item is not found', async () => {
-    // Empty store — no items
-    _stubInstance.stores.set('reconciliation_items', []);
+    stubHolder.instance!.stores.set('reconciliation_items', []);
 
     await expect(
       resolveItem('nonexistent-id', 'org-res', 'some_resolution', 'actor'),
@@ -189,7 +187,7 @@ describe('resolveItem', () => {
   // -------------------------------------------------------------------------
   it('throws error when item is already resolved', async () => {
     const item = makeItem({ state: 'resolved' });
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
     await expect(
       resolveItem('item-res-001', 'org-res', 'some_resolution', 'actor'),
@@ -201,7 +199,7 @@ describe('resolveItem', () => {
   // -------------------------------------------------------------------------
   it('throws error when item is already closed', async () => {
     const item = makeItem({ state: 'closed' });
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
     await expect(
       resolveItem('item-res-001', 'org-res', 'close_resolution', 'actor'),
@@ -210,17 +208,16 @@ describe('resolveItem', () => {
 
   // -------------------------------------------------------------------------
   // executeResolutionActions errors captured in resolution_actions
-  // The resolution should still complete even when downstream actions fail
+  // Resolution should complete even when downstream actions fail
   // -------------------------------------------------------------------------
-  it('completes resolution even when executeResolutionActions has partial failures', async () => {
-    // Item with disputed_cp_credit but NO cp_id in context → no accrual → actions still complete
+  it('completes resolution even when downstream actions have partial failures', async () => {
+    // Item with disputed_cp_credit but no cp_id → no accrual → still resolves
     const item = makeItem({
       item_type: 'disputed_cp_credit',
       context: { cp_id: undefined, booking_value: undefined },
     });
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
-    // Should not throw — actions failure is captured in resolution_actions.execution_errors
     const resolved = await resolveItem(
       'item-res-001',
       'org-res',
@@ -235,9 +232,8 @@ describe('resolveItem', () => {
   // resolution_actions object is persisted with actions_taken
   // -------------------------------------------------------------------------
   it('persists actions_taken in resolution_actions on the resolved item', async () => {
-    // Manual resolution for unknown type → actions_taken = ['Manual resolution recorded: ...']
     const item = makeItem({ item_type: 'source_disabled_violation' as any });
-    _stubInstance.stores.set('reconciliation_items', [item]);
+    stubHolder.instance!.stores.set('reconciliation_items', [item]);
 
     const resolved = await resolveItem(
       'item-res-001',
