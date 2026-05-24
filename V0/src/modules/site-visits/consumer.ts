@@ -7,6 +7,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { CrmSiteVisitPayload, SiteVisitConsumeResult } from './types';
+import { createItem } from '@/modules/reconciliation/queue';
 
 export type SiteVisitConsumerDeps = {
   supabaseAdmin: SupabaseClient;
@@ -78,6 +79,25 @@ export async function consumeSiteVisitEvent(
     const siteVisitEventId = (walkInRow as { id: string } | null)?.id ?? '';
 
     await deps.emitUnmatchedWalkIn?.(siteVisitEventId, orgId);
+
+    // Auto-create reconciliation queue item for unmatched walk-in
+    try {
+      await createItem({
+        org_id: orgId,
+        item_type: 'unmatched_walk_in',
+        severity: 'normal',
+        ...(siteVisitEventId ? { origin_event_id: siteVisitEventId } : {}),
+        context: {
+          site_visit_event_id: siteVisitEventId,
+          project_id: payload.project_id ?? null,
+          source_id: payload.source_id ?? null,
+          crm_event_id: payload.crm_event_id,
+          crm_metadata: payload.crm_metadata ?? null,
+        },
+      });
+    } catch (_err) {
+      // Non-fatal
+    }
 
     return { outcome: 'unmatched_walk_in', siteVisitEventId };
   }
