@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatInrLakh } from '@/lib/format-inr';
 import { useOrgId } from '@/lib/use-org-id';
+import GeoSuggestions from './GeoSuggestions';
 
 type RecItem = {
   id: string;
@@ -279,6 +280,13 @@ export function ReconciliationItemDetail({ id }: { id: string }) {
             </pre>
           </CardContent>
         </Card>
+      )}
+
+      {/* Geo Suggestions for unmatched walk-ins */}
+      {item.item_type === 'unmatched_walk_in' && (
+        <div className="mt-4">
+          <GeoSuggestions itemId={item.id} orgId={orgId} />
+        </div>
       )}
 
       {/* Resolution panel */}

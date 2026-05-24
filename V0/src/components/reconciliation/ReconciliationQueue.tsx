@@ -2,35 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatInrLakh } from '@/lib/format-inr';
+import { Badge } from '@/components/ui/badge';
 import { useOrgId } from '@/lib/use-org-id';
+import { formatInrLakh } from '@/lib/format-inr';
 
-type ReconciliationItem = {
+type RecItem = {
   id: string;
   item_type: string;
   state: string;
   severity: string;
   monetary_impact: number | null;
   sla_deadline_at: string | null;
+  context: Record<string, unknown>;
   created_at: string;
-};
-
-const SEVERITY_CLASSES: Record<string, string> = {
-  low: 'bg-slate-50 text-slate-600',
-  normal: 'bg-blue-50 text-blue-700',
-  high: 'bg-amber-50 text-amber-700',
-  critical: 'bg-red-50 text-red-700',
-};
-
-const STATE_CLASSES: Record<string, string> = {
-  open: 'bg-blue-50 text-blue-700',
-  in_review: 'bg-amber-50 text-amber-700',
-  resolved: 'bg-emerald-50 text-emerald-700',
-  escalated: 'bg-red-50 text-red-700',
-  closed: 'bg-slate-100 text-slate-500',
-  expired: 'bg-slate-100 text-slate-400',
+  assigned_to: string | null;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -46,227 +31,163 @@ const TYPE_LABELS: Record<string, string> = {
   orphan_spend_investigation: 'Orphan Spend',
 };
 
-type CreateFormState = {
-  item_type: string;
-  severity: string;
-  monetary_impact: string;
-  origin_event_id: string;
-};
-
-const DEFAULT_FORM: CreateFormState = {
-  item_type: 'disputed_cp_credit',
-  severity: 'normal',
-  monetary_impact: '',
-  origin_event_id: '',
-};
+function severityVariant(s: string): 'destructive' | 'warning' | 'secondary' | 'info' {
+  if (s === 'critical') return 'destructive';
+  if (s === 'high') return 'warning';
+  if (s === 'normal') return 'info';
+  return 'secondary';
+}
 
 export function ReconciliationQueue() {
   const orgId = useOrgId();
-  const [items, setItems] = useState<ReconciliationItem[]>([]);
+  const [items, setItems] = useState<RecItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [stateFilter, setStateFilter] = useState('open');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<CreateFormState>(DEFAULT_FORM);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkResolving, setBulkResolving] = useState(false);
+  const [stateFilter, setStateFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 20;
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`/api/reconciliation?state=${stateFilter}&limit=50`, {
-        headers: { 'x-org-id': orgId },
-      });
-      if (res.ok) {
-        const d = (await res.json()) as { items: ReconciliationItem[]; total: number };
-        setItems(d.items ?? []);
-        setTotal(d.total ?? 0);
-      }
-    } finally {
-      setLoading(false);
+    const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+    if (stateFilter) params.set('state', stateFilter);
+    if (severityFilter) params.set('severity', severityFilter);
+
+    const res = await fetch(`/api/reconciliation?${params}`, { headers: { 'x-org-id': orgId } });
+    if (res.ok) {
+      const data = await res.json() as { items: RecItem[]; total: number };
+      setItems(data.items);
+      setTotal(data.total);
     }
-  }, [stateFilter]);
+    setLoading(false);
+  }, [orgId, page, stateFilter, severityFilter]);
 
   useEffect(() => { void fetchItems(); }, [fetchItems]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const body: Record<string, unknown> = {
-        item_type: form.item_type,
-        severity: form.severity,
-      };
-      if (form.monetary_impact) body.monetary_impact = parseInt(form.monetary_impact, 10);
-      if (form.origin_event_id) body.origin_event_id = form.origin_event_id;
-
-      const res = await fetch('/api/reconciliation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = (await res.json()) as { error?: string };
-        setCreateError(err.error ?? 'Failed to create item.');
-        return;
-      }
-      setForm(DEFAULT_FORM);
-      setShowForm(false);
-      await fetchItems();
-    } catch {
-      setCreateError('Failed to create item.');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleBulkResolve = async () => {
-    setBulkResolving(true);
-    try {
-      await fetch('/api/reconciliation/bulk-resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-org-id': orgId },
-        body: JSON.stringify({ ids: Array.from(selected), resolution: 'Bulk resolved' }),
-      });
-      setSelected(new Set());
-      await fetchItems();
-    } finally {
-      setBulkResolving(false);
-    }
-  };
-
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const totalPages = Math.ceil(total / perPage);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl font-bold text-slate-900">Reconciliation Queue</h1>
         <div className="flex gap-2 flex-wrap">
-          {['open', 'in_review', 'resolved', 'escalated', 'closed'].map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStateFilter(s); setSelected(new Set()); }}
-              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${stateFilter === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-            >
-              {s.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          {selected.size > 0 && (
-            <Button size="sm" onClick={() => void handleBulkResolve()} disabled={bulkResolving}>
-              {bulkResolving ? 'Resolving…' : `Resolve ${selected.size} selected`}
-            </Button>
-          )}
-          <Button size="sm" variant="outline" onClick={() => { setShowForm((v) => !v); setCreateError(null); }}>
-            {showForm ? 'Cancel' : 'Create Item'}
-          </Button>
+          <select
+            value={stateFilter}
+            onChange={(e) => { setStateFilter(e.target.value); setPage(1); }}
+            className="rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All States</option>
+            <option value="open">Open</option>
+            <option value="in_review">In Review</option>
+            <option value="escalated">Escalated</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <select
+            value={severityFilter}
+            onChange={(e) => { setSeverityFilter(e.target.value); setPage(1); }}
+            className="rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
         </div>
       </div>
 
-      {showForm && (
-        <Card className="rounded-xl shadow-sm border-slate-200">
-          <CardHeader className="py-3 px-5 border-b">
-            <CardTitle className="text-sm font-medium text-slate-600">New Reconciliation Item</CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 py-4">
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Type *</label>
-                  <select required value={form.item_type} onChange={(e) => setForm((f) => ({ ...f, item_type: e.target.value }))} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Severity</label>
-                  <select value={form.severity} onChange={(e) => setForm((f) => ({ ...f, severity: e.target.value }))} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Monetary Impact (paise)</label>
-                  <input type="number" min="0" value={form.monetary_impact} onChange={(e) => setForm((f) => ({ ...f, monetary_impact: e.target.value }))} placeholder="e.g. 50000000" className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Origin Event ID</label>
-                  <input type="text" value={form.origin_event_id} onChange={(e) => setForm((f) => ({ ...f, origin_event_id: e.target.value }))} placeholder="e.g. lead_xyz123" className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-              </div>
-              {createError && <p className="text-sm text-red-600">{createError}</p>}
-              <div className="flex gap-3 pt-1">
-                <Button type="submit" size="sm" disabled={creating}>{creating ? 'Creating…' : 'Create'}</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => { setShowForm(false); setForm(DEFAULT_FORM); }}>Cancel</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <div className="py-12 text-center text-slate-400 animate-pulse">Loading…</div>
+      ) : items.length === 0 ? (
+        <div className="py-12 text-center text-slate-400">No items found.</div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">State</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Severity</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Impact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">SLA</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {items.map((item) => {
+                const isBreached = item.sla_deadline_at && new Date(item.sla_deadline_at) < new Date();
+                const isOpen = !['resolved', 'closed'].includes(item.state);
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-slate-800">
+                      {TYPE_LABELS[item.item_type] ?? item.item_type}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="secondary" className="capitalize text-xs">
+                        {item.state.replace(/_/g, ' ')}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={severityVariant(item.severity)} className="capitalize text-xs">
+                        {item.severity}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {item.monetary_impact != null ? formatInrLakh(item.monetary_impact) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {item.sla_deadline_at ? (
+                        <span className={isBreached && isOpen ? 'text-red-600 font-semibold' : 'text-slate-500'}>
+                          {new Date(item.sla_deadline_at).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'short',
+                          })}
+                          {isBreached && isOpen && ' ⚠'}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {new Date(item.created_at).toLocaleDateString('en-IN', {
+                        day: 'numeric', month: 'short',
+                      })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/reconciliation/${item.id}`}
+                        className="text-xs text-blue-600 hover:underline font-medium"
+                      >
+                        Review →
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <p className="text-xs text-slate-400">{total} total in this state</p>
-
-      {loading ? (
-        <div className="space-y-2">{[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />)}</div>
-      ) : items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 py-16 text-center text-slate-400 text-sm">
-          No {stateFilter.replace('_', ' ')} items.
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {items.map((item) => {
-            const isBreached = item.sla_deadline_at && new Date(item.sla_deadline_at) < new Date();
-            return (
-              <div key={item.id} className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-3 h-4 w-4 rounded border-slate-300"
-                  checked={selected.has(item.id)}
-                  onChange={() => toggleSelect(item.id)}
-                />
-                <Link href={`/reconciliation/${item.id}`} className="flex-1">
-                  <Card className="rounded-xl shadow-sm border-slate-200 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
-                    <CardContent className="px-5 py-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${SEVERITY_CLASSES[item.severity] ?? ''}`}>
-                              {item.severity}
-                            </span>
-                            <span className="text-sm font-semibold text-slate-900">
-                              {TYPE_LABELS[item.item_type] ?? item.item_type}
-                            </span>
-                          </div>
-                          {item.monetary_impact != null && (
-                            <p className="text-xs text-slate-500">Impact: {formatInrLakh(item.monetary_impact)}</p>
-                          )}
-                          {item.sla_deadline_at && (
-                            <p className={`text-xs ${isBreached ? 'text-red-600 font-medium' : 'text-slate-400'}`}>
-                              SLA: {new Date(item.sla_deadline_at).toLocaleString('en-IN')} {isBreached ? '⚠ BREACHED' : ''}
-                            </p>
-                          )}
-                        </div>
-                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${STATE_CLASSES[item.state] ?? ''}`}>
-                          {item.state.replace('_', ' ')}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
-            );
-          })}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <span>{total} total items</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

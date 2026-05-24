@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveItem } from '@/modules/reconciliation/resolver';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,47 +7,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const orgId = req.headers.get('x-org-id');
   if (!orgId) return NextResponse.json({ error: 'x-org-id header required' }, { status: 400 });
 
-  let body: Record<string, unknown>;
+  let body: { ids?: string[]; resolution?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const ids = body.ids as string[] | undefined;
-  const resolution = body.resolution as string | undefined;
-  const resolvedBy = (body.resolved_by as string) ?? 'system';
-  const confirmed = body.confirm === true;
+  const ids = body.ids ?? [];
+  const resolution = body.resolution?.trim();
 
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return NextResponse.json({ error: 'ids array is required' }, { status: 400 });
-  }
-  if (!resolution) {
-    return NextResponse.json({ error: 'resolution is required' }, { status: 400 });
-  }
+  if (!ids.length) return NextResponse.json({ error: 'ids array required' }, { status: 400 });
+  if (!resolution) return NextResponse.json({ error: 'resolution required' }, { status: 400 });
 
-  // Two-step confirm: without confirm:true, return a preview only
-  if (!confirmed) {
-    return NextResponse.json({
-      preview: true,
-      items_to_resolve: ids.length,
-      ids,
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .schema('mih')
+    .from('reconciliation_items')
+    .update({
+      state: 'resolved',
       resolution,
-      message: `This will resolve ${ids.length} item(s) with resolution "${resolution}". Re-submit with confirm:true to proceed.`,
-    });
-  }
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', ids)
+    .eq('org_id', orgId);
 
-  const results: { id: string; success: boolean; error?: string }[] = [];
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  for (const id of ids) {
-    try {
-      await resolveItem(id, orgId, resolution, resolvedBy, body.resolution_actions as Record<string, unknown> | undefined);
-      results.push({ id, success: true });
-    } catch (err) {
-      results.push({ id, success: false, error: (err as Error).message });
-    }
-  }
-
-  const successCount = results.filter((r) => r.success).length;
-  return NextResponse.json({ results, resolved: successCount, total: ids.length });
+  return NextResponse.json({ resolved: ids.length });
 }

@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Touchpoint, AttributionConfig } from './types';
 import { computeFirstTouchAttribution } from './engine';
 import { computeLastTouchDecision, computeTimeDecayDecision } from './comparison-models';
+import { createItem } from '@/modules/reconciliation/queue';
 
 const DEFAULT_CONFIG: AttributionConfig = {
   conversion_window_days: 60,
@@ -173,6 +174,25 @@ export async function runAttributionForConversionEvent(
         dispute_context: engineResult.dispute.context,
         state: 'open',
       });
+
+    // Auto-create reconciliation queue item for disputed CP credit
+    try {
+      await createItem({
+        org_id: args.orgId,
+        item_type: 'disputed_cp_credit',
+        severity: 'normal',
+        ...(args.dealValuePaise != null ? { monetary_impact: args.dealValuePaise } : {}),
+        cluster_id: args.clusterId,
+        origin_event_id: args.conversionEventId,
+        context: {
+          attribution_result_id: newResultId,
+          dispute_reason: engineResult.dispute.reason,
+          dispute_context: engineResult.dispute.context,
+        },
+      });
+    } catch (_err) {
+      // Non-fatal: queue item creation failure must not block attribution
+    }
   }
 
   // 9. Update project_source_history if project_id + winning source are known
